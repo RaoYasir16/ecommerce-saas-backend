@@ -13,7 +13,18 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
+            $table->bigInteger('company_id');
+            $table->string('title');
+            $table->string('slug');
+            $table->text('description')->nullable();
+            $table->decimal('regular_price', 10, 2);
+            $table->decimal('sale_price', 10, 2)->nullable();
+            $table->integer('stock')->nullable();
+            $table->boolean('is_available')->default(true);
             $table->timestamps();
+
+            // Indexing for faster tenant queries
+            $table->index(['company_id', 'slug']);
         });
     }
 
