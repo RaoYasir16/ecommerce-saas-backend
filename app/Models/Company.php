@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class Company extends Model
 {
@@ -19,8 +20,13 @@ class Company extends Model
         'trial_ends_at',
         'status',
     ];
+
     protected $casts = [
         'trial_ends_at' => 'datetime',
+    ];
+
+    protected $appends = [
+        'logo_url',
     ];
 
     public function users()
@@ -31,5 +37,17 @@ class Company extends Model
     public function products()
     {
         return $this->hasMany(Product::class);
+    }
+
+    /**
+     * Get complete logo URL.
+     */
+    public function getLogoUrlAttribute(): ?string
+    {
+        if (!$this->logo) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($this->logo);
     }
 }
