@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Company;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CompanyProfileUpdateRequest;
+use App\Http\Requests\StoreSettingRequest;
 use App\Services\Company\ProfileServices;
 use Illuminate\Http\Request;
 
@@ -61,6 +62,25 @@ class ProfileController extends Controller
             'Store settings fetched successfully.',
             $storeSetting,
             200
+        );
+    }
+
+    /**
+     * Update company store settings.
+     */
+    public function updateStoreSetting(StoreSettingRequest $request) 
+    {
+        $company = auth()->user()->company;
+
+        $storeSetting = $this->profileService->updateStoreSetting(
+            $company,
+            $request->validated()
+        );
+
+        return $this->apiResponse(
+            true,
+            'Store settings updated successfully.',
+            $storeSetting
         );
     }
 }

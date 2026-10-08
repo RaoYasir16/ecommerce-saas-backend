@@ -20,6 +20,7 @@ Route::prefix('company')->group(function () {
             Route::post('/update', [ProfileController::class,'updateProfile']);
 
             Route::get('/store-setting',[ProfileController::class,'getStoreSetting']);
+            Route::post('/store-setting/update',[ProfileController::class,'updateStoreSetting']);
         });
     });
 });

@@ -26,7 +26,7 @@ class StoreSetting extends Model
         'tiktok_url',
         'show_announcement',
         'announcement_text',
-        'footer_text'
+        'footer_text',
     ];
 
     protected $casts = [
@@ -35,14 +35,19 @@ class StoreSetting extends Model
         'show_announcement' => 'boolean',
     ];
 
-    // Banners mein stored relative paths ko frontend ke liye direct full URL bana kar return karein
     public function getBannersAttribute($value)
     {
-        $banners = json_decode($value, true) ?? [];
+        $banners = is_array($value)
+            ? $value
+            : (json_decode($value, true) ?? []);
+
         return array_map(function ($banner) {
-            if (isset($banner['image_path'])) {
-                $banner['image_url'] = asset('storage/' . $banner['image_path']);
+            if (!empty($banner['image_path'])) {
+                $banner['image_url'] = asset(
+                    'storage/' . $banner['image_path']
+                );
             }
+
             return $banner;
         }, $banners);
     }

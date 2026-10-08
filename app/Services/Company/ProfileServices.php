@@ -10,6 +10,7 @@ use App\Traits\FileUploadTrait;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ProfileServices
 {
@@ -148,5 +149,54 @@ class ProfileServices
         }
 
         return $storeSetting;
+    }
+
+    /**
+     * Update company store settings.
+     */
+    public function updateStoreSetting($company, array $data): StoreSetting
+    {
+        return DB::transaction(function () use ($company, $data) {
+
+            $storeSetting = StoreSetting::firstOrCreate([
+                'company_id' => $company->id,
+            ]);
+            // banner logic
+            if (isset($data['banners'])) {
+
+                // Delete old banners
+                foreach ($storeSetting->banners ?? [] as $banner) {
+
+                    if (!empty($banner['image_path'])) {
+                        $this->deleteFile($banner['image_path']);
+                    }
+                }
+
+                // Upload new banners
+                $banners = [];
+
+                foreach ($data['banners'] as $banner) {
+
+                    if ($banner) {
+
+                        $path = $this->uploadFile(
+                            $banner,
+                            'store-banners'
+                        );
+
+                        $banners[] = [
+                            'image_path' => $path,
+                        ];
+                    }
+                }
+
+                // Replace uploaded files in update data
+                $data['banners'] = $banners;
+            }
+
+            $storeSetting->update($data);
+
+            return $storeSetting->fresh();
+        });
     }
 }
