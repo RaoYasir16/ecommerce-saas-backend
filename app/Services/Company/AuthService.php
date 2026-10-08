@@ -49,7 +49,7 @@ class AuthService
      */
     public function register(array $data): array
     {
-        Log::info('Service Start');
+
         return DB::transaction(function () use ($data) {
 
             $subdomain = Str::slug($data['subdomain']);
