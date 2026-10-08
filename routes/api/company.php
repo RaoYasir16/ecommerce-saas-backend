@@ -14,9 +14,12 @@ Route::prefix('company')->group(function () {
     //Authenticated Company Routes
     Route::middleware('auth:user')->group(function () {
         Route::prefix('profile')->group(function () {
+            Route::post('/logout', [AuthController::class, 'logout']);
+
             Route::get('/', [ProfileController::class, 'profile']);
             Route::post('/update', [ProfileController::class,'updateProfile']);
-            Route::post('/logout', [AuthController::class, 'logout']);
+
+            Route::get('/store-setting',[ProfileController::class,'getStoreSetting']);
         });
     });
 });

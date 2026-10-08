@@ -1,5 +1,6 @@
 <?php
 
+use Database\Seeders\RoleSeeder;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -18,6 +19,13 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->timestamps();
         });
+
+        $this->callSeeder();
+    }
+
+    private function callSeeder(): void
+    {
+        app(RoleSeeder::class)->run();
     }
 
     /**

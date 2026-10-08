@@ -10,7 +10,7 @@ class StoreSetting extends Model
     use HasFactory;
 
     protected $fillable = [
-        'tenant_id',
+        'company_id',
         'primary_color',
         'secondary_color',
         'accent_color',
@@ -26,6 +26,7 @@ class StoreSetting extends Model
         'tiktok_url',
         'show_announcement',
         'announcement_text',
+        'footer_text'
     ];
 
     protected $casts = [

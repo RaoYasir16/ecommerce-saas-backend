@@ -40,6 +40,8 @@ return new class extends Migration
             $table->boolean('show_announcement')->default(false);
             $table->string('announcement_text')->nullable();
 
+            $table->string('footer_text')->nullable();
+
             $table->timestamps();
 
             // Ek tenant ki sirf ek hi settings row honi chahiye

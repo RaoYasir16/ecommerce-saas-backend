@@ -22,15 +22,17 @@ trait FileUploadTrait
      */
     protected function deleteFile(?string $path): bool
     {
-        if (!$path) {
+        if (empty($path)) {
             return false;
         }
-
-        if (Storage::disk('public')->exists($path)) {
-            return Storage::disk('public')->delete($path);
+    
+        $disk = Storage::disk('public');
+    
+        if (!$disk->exists($path)) {
+            return false;
         }
-
-        return false;
+    
+        return $disk->delete($path);
     }
 
     /**

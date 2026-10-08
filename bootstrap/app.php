@@ -8,6 +8,8 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -69,6 +71,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => 'Route not found.',
                 'data' => null,
             ], 404);
+        });
+        // HTTP Exception
+        $exceptions->render(function (
+            HttpException $e,
+            Request $request
+        ) {
+            return response()->json([
+                'status' => false,
+                'message' => $e->getMessage(),
+                'data' => null,
+            ], $e->getStatusCode());
         });
     })
 

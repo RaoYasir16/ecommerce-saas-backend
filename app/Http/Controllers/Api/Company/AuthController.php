@@ -7,6 +7,7 @@ use App\Http\Requests\CompanyLoginRequest;
 use App\Http\Requests\CompanyRegisterRequest;
 use App\Services\Company\AuthService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {

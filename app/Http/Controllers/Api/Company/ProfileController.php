@@ -45,4 +45,22 @@ class ProfileController extends Controller
             200
         );
     }
+
+
+    /**
+     * Update company profile.
+     */
+    public function getStoreSetting(Request $request)
+    {
+        $storeSetting = $this->profileService->getStoreSetting(
+            $request->user()
+        );
+
+        return $this->apiResponse(
+            true,
+            'Store settings fetched successfully.',
+            $storeSetting,
+            200
+        );
+    }
 }

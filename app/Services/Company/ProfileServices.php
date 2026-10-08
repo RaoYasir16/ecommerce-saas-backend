@@ -123,4 +123,30 @@ class ProfileServices
             'updated_at' => $company->updated_at,
         ];
     }
+
+    /**
+     * Get company store settings.
+     */
+    public function getStoreSetting(User $user)
+    {
+        $company = $user->company;
+
+        if (!$company) {
+            throw new \Exception(
+                'Company not found.',
+                404
+            );
+        }
+
+        $storeSetting = $company->storeSetting;
+
+        if (!$storeSetting) {
+            throw new \Exception(
+                'Store settings not found.',
+                404
+            );
+        }
+
+        return $storeSetting;
+    }
 }

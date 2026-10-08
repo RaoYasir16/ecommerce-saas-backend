@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Storage;
 
 class Company extends Model
@@ -49,5 +50,10 @@ class Company extends Model
         }
 
         return Storage::disk('public')->url($this->logo);
+    }
+
+    public function storeSetting(): HasOne
+    { 
+        return $this->hasOne(StoreSetting::class); 
     }
 }

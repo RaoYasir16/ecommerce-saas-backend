@@ -9,7 +9,9 @@ use App\Models\User;
 use App\Traits\FileUploadTrait;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class AuthService
 {
@@ -47,6 +49,7 @@ class AuthService
      */
     public function register(array $data): array
     {
+        Log::info('Service Start');
         return DB::transaction(function () use ($data) {
 
             $subdomain = Str::slug($data['subdomain']);
@@ -55,11 +58,10 @@ class AuthService
              * Logo Upload
              */
             $logoPath = null;
-
             if (isset($data['logo']) && $data['logo']) {
-                $logoPath = $data['logo']->uploadFile(
-                    'companies/logos',
-                    'public'
+                $logoPath = $this->uploadFile(
+                    $data['logo'],
+                    'companies/logos'
                 );
             }
 
@@ -93,7 +95,10 @@ class AuthService
             /*
              * Create Merchant Admin
              */
-            $role = Role::where('name', 'Admin')->firstOrFail();
+            $role = Role::where('name', 'Admin')->first();
+            if(!$role){
+                throw new HttpException(404,'Role not found');
+            }
 
             $user = User::create([
                 'company_id' => $company->id,
@@ -108,6 +113,7 @@ class AuthService
              */
             $token = $user->createToken('user-token')->plainTextToken;
 
+            Log::info('Service retrun data');
             return [
                 'token' => $token,
                 'user' => $this->formatUser($user),
@@ -126,13 +132,13 @@ class AuthService
             ->first();
 
         if (!$user || !Hash::check($data['password'], $user->password)) {
-            throw new \Exception('Invalid email or password credentials.', 401);
+            throw new HttpException( 401,'Invalid email or password credentials.');
         }
 
         if (!$user->role()->where('name', 'Admin')->exists()) {
-            throw new \Exception(
-                'Access denied. You are not authorized as a merchant.',
-                403
+            throw new HttpException( 403,
+                'Access denied. You are not authorized as a merchant.'
+               
             );
         }
 
