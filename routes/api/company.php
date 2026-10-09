@@ -31,11 +31,11 @@ Route::prefix('company')->group(function () {
             Route::post('/category/add',[ProductController::class,'addCategory']);
             Route::delete('/category/delete/{id}',[ProductController::class,'deleteCategory']);
 
-            Route::get('/',[ProductController::class,'']);
-            Route::post('/create',[ProductController::class,'']);
-            Route::get('/single/{id}',[ProductController::class,'']);
-            Route::post('/update/{id}',[ProductController::class,'']);
-            Route::delete('/delete/{id}',[ProductController::class,'']);
+            Route::get('/',[ProductController::class,'index']);
+            Route::post('/create',[ProductController::class,'store']);
+            Route::get('/single/{id}',[ProductController::class,'show']);
+            Route::post('/update/{id}',[ProductController::class,'update']);
+            Route::delete('/delete/{id}',[ProductController::class,'destroy']);
         });
     });
 });
