@@ -28,7 +28,6 @@ class StoreSetting extends Model
         'announcement_text',
         'footer_text',
     ];
-
     protected $casts = [
         'banners' => 'array',
         'use_custom_terms' => 'boolean',
