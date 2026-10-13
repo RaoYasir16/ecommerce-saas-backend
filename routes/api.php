@@ -11,3 +11,4 @@ Route::get('/test', function () {
 
 
 require __DIR__ . '/api/company.php';
+require __DIR__ . '/api/customer.php';

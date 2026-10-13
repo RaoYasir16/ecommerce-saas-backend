@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\Company\AuthController;
 use App\Http\Controllers\Api\Company\ProductController;
 use App\Http\Controllers\Api\Company\ProfileController;
+use App\Http\Middleware\EnsureCompanyAdmin;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('company')->group(function () {
@@ -13,7 +14,7 @@ Route::prefix('company')->group(function () {
 
 
     //Authenticated Company Routes
-    Route::middleware('auth:user')->group(function () {
+    Route::middleware('auth:user',EnsureCompanyAdmin::class,)->group(function () {
         // Profile and store setting routes
         Route::prefix('profile')->group(function () {
             Route::post('/logout', [AuthController::class, 'logout']);

@@ -72,6 +72,7 @@ class StoreProductRequest extends FormRequest
                 'mimes:jpg,jpeg,png,webp',
                 'max:5120',
             ],
+            'is_featured' =>  ['nullable', 'boolean'],
         ];
     }
 }

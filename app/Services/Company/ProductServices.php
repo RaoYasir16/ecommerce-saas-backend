@@ -140,6 +140,7 @@ class ProductServices
                 'sale_price' => $data['sale_price'] ?? null,
                 'is_available' => $data['is_available'] ?? true,
                 'has_variants' => $data['has_variants'] ?? false,
+                'is_featured' => $data['is_featured'] ?? false,
             ]);
 
             if ($product->has_variants) {
