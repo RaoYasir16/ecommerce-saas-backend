@@ -13,6 +13,7 @@ use App\Models\ProductVariant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class StoreService
@@ -83,7 +84,7 @@ class StoreService
     // FAVORITES / WISHLIST
     // ==========================================
 
-    public function addFavorite($company, $user, array $data): Favorite
+    public function addFavorite($company, $user, array $data): array
     {
         $product = Product::query()
             ->where('company_id', $company->id)
@@ -96,13 +97,38 @@ class StoreService
             ]);
         }
 
-        $favorite = Favorite::firstOrCreate([
+        $favorite = Favorite::query()
+            ->where('company_id', $company->id)
+            ->where('user_id', $user->id)
+            ->where('product_id', $product->id)
+            ->first();
+
+        if ($favorite) {
+            $favorite->delete();
+
+            return [
+                'message' => 'Product removed from favorites successfully.',
+                'data' => [
+                    'product_id' => $product->id,
+                    'is_favorite' => false,
+                ],
+            ];
+        }
+
+        $favorite = Favorite::create([
             'company_id' => $company->id,
             'user_id' => $user->id,
             'product_id' => $product->id,
         ]);
 
-        return $favorite->load(['product.images', 'product.category', 'product.variants']);
+        return [
+            'message' => 'Product added to favorites successfully.',
+            'data' => $favorite->load([
+                'product.images',
+                'product.category',
+                'product.variants',
+            ])->setAttribute('is_favorite', true),
+        ];
     }
 
     public function getFavorites($company, $user, array $filters = [])
@@ -116,34 +142,6 @@ class StoreService
         $perPage = min(max((int) ($filters['per_page'] ?? 15), 1), 100);
 
         return $query->paginate($perPage);
-    }
-
-    public function removeFavorite($company, $user, array $data): bool
-    {
-        $productId = $data['product_id'] ?? null;
-        $favoriteId = $data['favorite_id'] ?? $data['id'] ?? null;
-
-        $query = Favorite::query()
-            ->where('company_id', $company->id)
-            ->where('user_id', $user->id);
-
-        if ($favoriteId) {
-            $query->where('id', $favoriteId);
-        } elseif ($productId) {
-            $query->where('product_id', $productId);
-        } else {
-            throw ValidationException::withMessages([
-                'product_id' => ['Please provide a product_id or favorite_id.'],
-            ]);
-        }
-
-        $deleted = $query->delete();
-
-        if (!$deleted) {
-            throw new NotFoundHttpException('Favorite item not found.');
-        }
-
-        return true;
     }
 
     // ==========================================
@@ -252,34 +250,21 @@ class StoreService
         ];
     }
 
-    public function removeFromCart($company, $user, array $data = [], $cartItemId = null): bool
+    public function removeFromCart($company, $user, int $cartItemId): bool
     {
-        $targetId = $cartItemId ?? $data['cart_item_id'] ?? $data['id'] ?? null;
-        $productId = $data['product_id'] ?? null;
-        $variantId = $data['product_variant_id'] ?? null;
-
-        $query = CartItem::query()
+        $cartItem = CartItem::query()
+            ->where('id', $cartItemId)
             ->where('company_id', $company->id)
-            ->where('user_id', $user->id);
+            ->where('user_id', $user->id)
+            ->first();
 
-        if ($targetId) {
-            $query->where('id', $targetId);
-        } elseif ($productId) {
-            $query->where('product_id', $productId);
-            if ($variantId !== null) {
-                $query->where('product_variant_id', $variantId);
-            }
-        } else {
-            throw ValidationException::withMessages([
-                'cart_item_id' => ['Please specify cart_item_id or product_id to remove.'],
-            ]);
+        if (!$cartItem) {
+            throw new HttpException(404,
+                'Cart item not found or invalid cart ID.'
+            );
         }
 
-        $deleted = $query->delete();
-
-        if (!$deleted) {
-            throw new NotFoundHttpException('Cart item not found.');
-        }
+        $cartItem->delete();
 
         return true;
     }

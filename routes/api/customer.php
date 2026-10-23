@@ -25,19 +25,16 @@ Route::middleware(ResolveStore::class)->group(function () {
         Route::middleware('auth:user')->group(function () {
             // Favorite / Wishlist Routes
             Route::prefix('favorite')->group(function () {
-                Route::post('/add', [CustomerStoreController::class, 'addFavorite']);
+                Route::post('/add-remove', [CustomerStoreController::class, 'addFavorite']);
                 Route::get('/get-all', [CustomerStoreController::class, 'getFavorites']);
-                Route::post('/remove/{id?}', [CustomerStoreController::class, 'removeFavorite']);
-                Route::delete('/remove/{id?}', [CustomerStoreController::class, 'removeFavorite']);
             });
 
             // Cart Routes
             Route::prefix('add-to-cart')->group(function () {
                 Route::post('/add', [CustomerStoreController::class, 'addToCart']);
                 Route::get('/get-all', [CustomerStoreController::class, 'getCart']);
-                Route::post('/remove/{id?}', [CustomerStoreController::class, 'removeFromCart']);
-                Route::delete('/remove/{id?}', [CustomerStoreController::class, 'removeFromCart']);
                 Route::post('/update', [CustomerStoreController::class, 'updateCartQuantity']);
+                Route::delete('/remove/{id}', [CustomerStoreController::class, 'removeFromCart']);
                 Route::delete('/clear', [CustomerStoreController::class, 'clearCart']);
             });
 

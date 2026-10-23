@@ -29,9 +29,18 @@ class CustomerStoreController extends Controller
         $company = $request->attributes->get('storeCompany');
         $user = $request->user();
 
-        $favorite = $this->storeService->addFavorite($company, $user, $request->validated());
+        $result = $this->storeService->addFavorite(
+            $company,
+            $user,
+            $request->validated()
+        );
 
-        return $this->apiResponse(true, 'Product added to favorites successfully.', $favorite, 201);
+        return $this->apiResponse(
+            true,
+            $result['message'],
+            $result['data'],
+            200
+        );
     }
 
     public function getFavorites(Request $request): JsonResponse
@@ -42,21 +51,6 @@ class CustomerStoreController extends Controller
         $favorites = $this->storeService->getFavorites($company, $user, $request->only('per_page'));
 
         return $this->apiResponse(true, 'Favorites retrieved successfully.', $favorites);
-    }
-
-    public function removeFavorite(RemoveFavoriteRequest $request, $id = null): JsonResponse
-    {
-        $company = $request->attributes->get('storeCompany');
-        $user = $request->user();
-
-        $data = $request->validated();
-        if ($id !== null) {
-            $data['id'] = $id;
-        }
-
-        $this->storeService->removeFavorite($company, $user, $data);
-
-        return $this->apiResponse(true, 'Product removed from favorites successfully.');
     }
 
     // ==========================================
@@ -83,19 +77,17 @@ class CustomerStoreController extends Controller
         return $this->apiResponse(true, 'Cart retrieved successfully.', $cart);
     }
 
-    public function removeFromCart(RemoveFromCartRequest $request, $id = null): JsonResponse
+    public function removeFromCart(Request $request,int $id) 
     {
         $company = $request->attributes->get('storeCompany');
         $user = $request->user();
 
-        $data = $request->validated();
-        if ($id !== null) {
-            $data['id'] = $id;
-        }
+        $this->storeService->removeFromCart($company, $user, $id);
 
-        $this->storeService->removeFromCart($company, $user, $data, $id);
-
-        return $this->apiResponse(true, 'Item removed from cart successfully.');
+        return $this->apiResponse(
+            true,
+            'Item removed from cart successfully.'
+        );
     }
 
     public function updateCartQuantity(Request $request): JsonResponse
@@ -116,7 +108,7 @@ class CustomerStoreController extends Controller
         return $this->apiResponse(true, 'Cart quantity updated successfully.', $updated);
     }
 
-    public function clearCart(Request $request): JsonResponse
+    public function clearCart(Request $request)
     {
         $company = $request->attributes->get('storeCompany');
         $user = $request->user();
