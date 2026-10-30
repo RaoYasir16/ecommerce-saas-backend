@@ -61,11 +61,11 @@ class StoreService
         return $query->latest()->paginate($perPage);
     }
 
-    public function getProduct($company, string $slug): Product
+    public function getProduct($company, string $id): Product
     {
         return Product::query()
             ->where('company_id', $company->id)
-            ->where('slug', $slug)
+            ->where('id', $id)
             ->where('is_available', true)
             ->with(['category', 'images', 'variants', 'reviews.user:id,name'])
             ->firstOrFail();

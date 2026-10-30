@@ -38,7 +38,7 @@ class ProductServices
                 'slug' => $data['slug'],
                 'description' => $data['description'] ?? null,
                 'image' => $imagePath,
-                'is_active' => $data['is_active'] ?? true,
+                'is_active' => filter_var($data['is_active'] ?? true, FILTER_VALIDATE_BOOLEAN),
             ]);
         });
     }
@@ -49,6 +49,7 @@ class ProductServices
     public function getAllCategories($company)
     {
         return ProductCategory::where('company_id', $company->id)
+            ->withCount('products')
             ->latest()
             ->get();
     }
@@ -63,6 +64,10 @@ class ProductServices
         if(!$category){
             throw new HttpException(404,'Product Category not found');
         }
+
+        // Unlink associated products before deleting category
+        $category->products()->update(['category_id' => null]);
+
         // Delete category image
         if (!empty($category->image)) {
             $this->deleteFile($category->image);
@@ -138,9 +143,9 @@ class ProductServices
                 'stock' => $data['stock'] ?? 0,
                 'regular_price' => $data['regular_price'],
                 'sale_price' => $data['sale_price'] ?? null,
-                'is_available' => $data['is_available'] ?? true,
-                'has_variants' => $data['has_variants'] ?? false,
-                'is_featured' => $data['is_featured'] ?? false,
+                'is_available' => filter_var($data['is_available'] ?? true, FILTER_VALIDATE_BOOLEAN),
+                'has_variants' => filter_var($data['has_variants'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                'is_featured' => filter_var($data['is_featured'] ?? false, FILTER_VALIDATE_BOOLEAN),
             ]);
 
             if ($product->has_variants) {
@@ -177,12 +182,20 @@ class ProductServices
                 'stock',
                 'regular_price',
                 'sale_price',
-                'is_available',
-                'has_variants',
             ] as $field) {
                 if (array_key_exists($field, $data)) {
                     $updateData[$field] = $data[$field];
                 }
+            }
+
+            if (array_key_exists('is_available', $data)) {
+                $updateData['is_available'] = filter_var($data['is_available'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (array_key_exists('has_variants', $data)) {
+                $updateData['has_variants'] = filter_var($data['has_variants'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (array_key_exists('is_featured', $data)) {
+                $updateData['is_featured'] = filter_var($data['is_featured'], FILTER_VALIDATE_BOOLEAN);
             }
 
             if (isset($data['slug'])) {

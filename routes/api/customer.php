@@ -19,7 +19,7 @@ Route::middleware(ResolveStore::class)->group(function () {
         Route::get('/show-store', [StoreController::class, 'show']);
         Route::get('/categories', [StoreController::class, 'categories']);
         Route::get('/products', [StoreController::class, 'products']);
-        Route::get('/products/{slug}', [StoreController::class, 'product']);
+        Route::get('/products/{id}', [StoreController::class, 'product']);
         Route::get('/products/{id}/reviews', [CustomerStoreController::class, 'getProductReviews']);
 
         Route::middleware('auth:user')->group(function () {

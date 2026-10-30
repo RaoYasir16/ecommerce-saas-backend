@@ -17,6 +17,46 @@ class StoreProductRequest extends FormRequest
     }
 
     /**
+     * Prepare data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (empty($this->slug) && !empty($this->title)) {
+            $this->merge([
+                'slug' => \Illuminate\Support\Str::slug($this->title),
+            ]);
+        }
+
+        if ($this->has('has_variants')) {
+            $this->merge([
+                'has_variants' => filter_var($this->has_variants, FILTER_VALIDATE_BOOLEAN),
+            ]);
+        }
+
+        if ($this->has('variants_json') && (!$this->has('variants') || empty($this->variants))) {
+            $decoded = json_decode($this->variants_json, true);
+            if (is_array($decoded)) {
+                $this->merge(['variants' => $decoded]);
+            }
+        }
+
+        if ($this->has('variants')) {
+            $variants = $this->variants;
+            if (is_string($variants)) {
+                $variants = json_decode($variants, true) ?? [];
+            }
+            if (is_array($variants)) {
+                foreach ($variants as $k => $v) {
+                    if (isset($v['attributes']) && is_string($v['attributes'])) {
+                        $variants[$k]['attributes'] = json_decode($v['attributes'], true) ?? [];
+                    }
+                }
+                $this->merge(['variants' => $variants]);
+            }
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
@@ -52,7 +92,7 @@ class StoreProductRequest extends FormRequest
             'has_variants' => ['nullable', 'boolean'],
 
             'variants' => [
-                'required_if:has_variants,1',
+                'required_if:has_variants,1,true',
                 'array',
             ],
             'variants.*.sku' => ['nullable', 'string', 'max:100'],

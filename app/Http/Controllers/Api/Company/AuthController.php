@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\Company;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\CompanyLoginRequest;
 use App\Http\Requests\CompanyRegisterRequest;
+use App\Http\Requests\CompanyResendOtpRequest;
+use App\Http\Requests\CompanyVerifyOtpRequest;
 use App\Services\Company\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -50,9 +52,44 @@ class AuthController extends Controller
 
         return $this->apiResponse(
             true,
-            'Shop registered successfully! 1-month free trial activated.',
+            'Shop registered successfully! Verification OTP sent to your email.',
             $result,
             201
+        );
+    }
+
+    /**
+     * Verify company registration OTP.
+     */
+    public function verifyOtp(CompanyVerifyOtpRequest $request)
+    {
+        $result = $this->authService->verifyOtp(
+            $request->validated()
+        );
+
+        return $this->apiResponse(
+            true,
+            'Email verified successfully! Store account activated.',
+            $result,
+            200
+        );
+    }
+
+    /**
+     * Resend verification OTP.
+     */
+    public function resendOtp(CompanyResendOtpRequest $request)
+    {
+        $this->authService->resendOtp(
+            $request->email,
+            $request->type ?? 'register'
+        );
+
+        return $this->apiResponse(
+            true,
+            'A new verification OTP has been sent to your email.',
+            null,
+            200
         );
     }
 

@@ -142,10 +142,9 @@ class ProfileServices
         $storeSetting = $company->storeSetting;
 
         if (!$storeSetting) {
-            throw new \Exception(
-                'Store settings not found.',
-                404
-            );
+            $storeSetting = StoreSetting::firstOrCreate([
+                'company_id' => $company->id,
+            ]);
         }
 
         return $storeSetting;
@@ -161,37 +160,59 @@ class ProfileServices
             $storeSetting = StoreSetting::firstOrCreate([
                 'company_id' => $company->id,
             ]);
+
             // banner logic
-            if (isset($data['banners'])) {
+            $hasNewBanners = isset($data['banners']) && is_array($data['banners']);
+            $hasExistingBanners = array_key_exists('existing_banners', $data);
 
-                // Delete old banners
+            if ($hasNewBanners || $hasExistingBanners) {
+                $keptBanners = [];
+                $existingPathsToKeep = [];
+
+                if ($hasExistingBanners) {
+                    if (is_array($data['existing_banners'])) {
+                        $existingPathsToKeep = $data['existing_banners'];
+                    } elseif (is_string($data['existing_banners'])) {
+                        $decoded = json_decode($data['existing_banners'], true);
+                        $existingPathsToKeep = is_array($decoded) ? $decoded : [];
+                    }
+                }
+
+                // Delete old banners that are NOT in existingPathsToKeep
                 foreach ($storeSetting->banners ?? [] as $banner) {
-
-                    if (!empty($banner['image_path'])) {
-                        $this->deleteFile($banner['image_path']);
+                    $path = $banner['image_path'] ?? null;
+                    if ($path) {
+                        if ($hasExistingBanners && in_array($path, $existingPathsToKeep)) {
+                            $keptBanners[] = ['image_path' => $path];
+                        } elseif (!$hasExistingBanners) {
+                            // If existing_banners was not sent, full replace: delete old banner
+                            $this->deleteFile($path);
+                        } else {
+                            // In existing_banners array, but this path was removed
+                            $this->deleteFile($path);
+                        }
                     }
                 }
 
                 // Upload new banners
-                $banners = [];
+                if ($hasNewBanners) {
+                    foreach ($data['banners'] as $banner) {
+                        if ($banner) {
+                            $path = $this->uploadFile(
+                                $banner,
+                                'store-banners'
+                            );
 
-                foreach ($data['banners'] as $banner) {
-
-                    if ($banner) {
-
-                        $path = $this->uploadFile(
-                            $banner,
-                            'store-banners'
-                        );
-
-                        $banners[] = [
-                            'image_path' => $path,
-                        ];
+                            $keptBanners[] = [
+                                'image_path' => $path,
+                            ];
+                        }
                     }
                 }
 
-                // Replace uploaded files in update data
-                $data['banners'] = $banners;
+                // Replace banners array in update data
+                $data['banners'] = $keptBanners;
+                unset($data['existing_banners']);
             }
 
             $storeSetting->update($data);

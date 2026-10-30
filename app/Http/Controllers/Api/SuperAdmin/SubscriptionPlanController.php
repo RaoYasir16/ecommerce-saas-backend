@@ -61,9 +61,9 @@ class SubscriptionPlanController extends Controller
     /**
      * Display the specified subscription plan.
      */
-    public function show(int|string $subscription_plan): JsonResponse
+    public function show(int|string $id): JsonResponse
     {
-        $plan = $this->subscriptionPlanService->getPlanById($subscription_plan);
+        $plan = $this->subscriptionPlanService->getPlanById($id);
 
         return $this->apiResponse(
             true,
@@ -72,14 +72,11 @@ class SubscriptionPlanController extends Controller
         );
     }
 
-    /**
-     * Update the specified subscription plan in storage.
-     */
-    public function update(UpdateSubscriptionPlanRequest $request, int|string $subscription_plan): JsonResponse
+    public function update(UpdateSubscriptionPlanRequest $request,int|string $id): JsonResponse 
     {
         try {
             $plan = $this->subscriptionPlanService->updatePlan(
-                $subscription_plan,
+                $id,
                 $request->validated()
             );
 
@@ -100,13 +97,10 @@ class SubscriptionPlanController extends Controller
         }
     }
 
-    /**
-     * Remove the specified subscription plan from storage.
-     */
-    public function destroy(int|string $subscription_plan): JsonResponse
+    public function destroy(int|string $id): JsonResponse
     {
         try {
-            $this->subscriptionPlanService->deletePlan($subscription_plan);
+            $this->subscriptionPlanService->deletePlan($id);
 
             return $this->apiResponse(
                 true,

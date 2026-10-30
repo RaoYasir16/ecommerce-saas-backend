@@ -28,7 +28,7 @@ class ResolveStore
 
         $company = Company::query()
             ->where('subdomain', $subdomain)
-            ->where('status', 'trial')
+            ->whereIn('status', ['trial', 'active'])
             ->first();
 
         if (!$company) {

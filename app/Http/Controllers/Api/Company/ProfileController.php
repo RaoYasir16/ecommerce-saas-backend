@@ -57,6 +57,8 @@ class ProfileController extends Controller
             $request->user()
         );
 
+        $storeSetting->platform_copyright_text = \App\Models\PlatformSetting::getStoreFooterCopyrightText();
+
         return $this->apiResponse(
             true,
             'Store settings fetched successfully.',
@@ -70,7 +72,16 @@ class ProfileController extends Controller
      */
     public function updateStoreSetting(StoreSettingRequest $request) 
     {
-        $company = auth()->user()->company;
+        $company = $request->user()->company ?? auth()->user()?->company;
+
+        if (!$company) {
+            return $this->apiResponse(
+                false,
+                'Company not found.',
+                null,
+                404
+            );
+        }
 
         $storeSetting = $this->profileService->updateStoreSetting(
             $company,

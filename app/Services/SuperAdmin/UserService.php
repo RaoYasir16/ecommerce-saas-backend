@@ -14,7 +14,7 @@ class UserService
     public function getAllUsers(array $filters = []): LengthAwarePaginator
     {
         $query = User::query()
-            ->with(['company:id,name,subdomain,status', 'role:id,name'])
+            ->with(['company:id,name,subdomain,status', 'role:id,slug'])
             ->withCount(['orders', 'favorites', 'reviews']);
 
         if (!empty($filters['search'])) {
@@ -29,8 +29,36 @@ class UserService
             $query->where('company_id', $filters['company_id']);
         }
 
-        if (!empty($filters['role'])) {
-            $query->where('role', $filters['role']);
+        if (!empty($filters['role']) && $filters['role'] !== 'all') {
+            $roleParam = $filters['role'];
+            $query->where(function ($q) use ($roleParam) {
+                if (is_numeric($roleParam)) {
+                    $q->where('role', $roleParam);
+                } else {
+                    $slug = strtolower(trim($roleParam));
+                    if ($slug === 'admin') {
+                        $q->where('role', 1)
+                          ->orWhere('role', 'admin')
+                          ->orWhereHas('role', function ($rq) {
+                              $rq->where('slug', 'admin')
+                                 ->orWhere('name', 'like', '%admin%');
+                          });
+                    } elseif ($slug === 'customer') {
+                        $q->where('role', 2)
+                          ->orWhere('role', 'customer')
+                          ->orWhereHas('role', function ($rq) {
+                              $rq->where('slug', 'customer')
+                                 ->orWhere('name', 'like', '%customer%');
+                          });
+                    } else {
+                        $q->where('role', $slug)
+                          ->orWhereHas('role', function ($rq) use ($slug) {
+                              $rq->where('slug', $slug)
+                                 ->orWhere('name', 'like', "%{$slug}%");
+                          });
+                    }
+                }
+            });
         }
 
         $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 15;
@@ -63,8 +91,36 @@ class UserService
             });
         }
 
-        if (!empty($filters['role'])) {
-            $query->where('role', $filters['role']);
+        if (!empty($filters['role']) && $filters['role'] !== 'all') {
+            $roleParam = $filters['role'];
+            $query->where(function ($q) use ($roleParam) {
+                if (is_numeric($roleParam)) {
+                    $q->where('role', $roleParam);
+                } else {
+                    $slug = strtolower(trim($roleParam));
+                    if ($slug === 'admin') {
+                        $q->where('role', 1)
+                          ->orWhere('role', 'admin')
+                          ->orWhereHas('role', function ($rq) {
+                              $rq->where('slug', 'admin')
+                                 ->orWhere('name', 'like', '%admin%');
+                          });
+                    } elseif ($slug === 'customer') {
+                        $q->where('role', 2)
+                          ->orWhere('role', 'customer')
+                          ->orWhereHas('role', function ($rq) {
+                              $rq->where('slug', 'customer')
+                                 ->orWhere('name', 'like', '%customer%');
+                          });
+                    } else {
+                        $q->where('role', $slug)
+                          ->orWhereHas('role', function ($rq) use ($slug) {
+                              $rq->where('slug', $slug)
+                                 ->orWhere('name', 'like', "%{$slug}%");
+                          });
+                    }
+                }
+            });
         }
 
         $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 15;

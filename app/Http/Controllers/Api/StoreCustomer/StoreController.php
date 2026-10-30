@@ -16,7 +16,21 @@ class StoreController extends Controller
     {
         $company = $request->attributes->get('storeCompany');
 
-        return $this->apiResponse(true,'Store fetched successfully.', $this->storeService->getStore($company));
+        if ($company) {
+            try {
+                \App\Models\StoreVisit::create([
+                    'company_id' => $company->id,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => substr($request->userAgent() ?? '', 0, 500),
+                    'referer' => substr($request->header('referer') ?? '', 0, 255),
+                    'visited_at' => now(),
+                ]);
+            } catch (\Throwable) {
+                // Ignore analytics error
+            }
+        }
+
+        return $this->apiResponse(true, 'Store fetched successfully.', $this->storeService->getStore($company));
     }
 
     public function products(Request $request)
@@ -31,11 +45,11 @@ class StoreController extends Controller
         return $this->apiResponse(true,'Products fetched successfully',$products,);
     }
 
-    public function product(Request $request, string $slug)
+    public function product(Request $request, int $id)
     {
         $company = $request->attributes->get('storeCompany');
 
-        $product = $this->storeService->getProduct($company, $slug);
+        $product = $this->storeService->getProduct($company, $id);
 
         return $this->apiResponse(true,'Products fatched Successfully',$product,);
 

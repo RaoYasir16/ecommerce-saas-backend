@@ -42,14 +42,16 @@ class CompanyRegisterRequest extends FormRequest
             ],
             'whatsapp_number'       => 'required|string|max:20',
             'logo'                  => 'nullable|image|mimes:jpeg,png,jpg,webp,svg|max:2048',
+            'referral_code'         => ['nullable', 'string', 'max:50', 'exists:companies,referral_code'],
         ];
     }
     public function messages(): array
     {
         return [
-            'subdomain.regex'   => 'Subdomain can only contain lowercase letters, numbers, and hyphens.',
-            'subdomain.unique'  => 'This shop link (subdomain) is already taken. Please choose another.',
-            'subdomain.not_in'  => 'This subdomain is reserved and cannot be used.',
+            'subdomain.regex'        => 'Subdomain can only contain lowercase letters, numbers, and hyphens.',
+            'subdomain.unique'       => 'This shop link (subdomain) is already taken. Please choose another.',
+            'subdomain.not_in'       => 'This subdomain is reserved and cannot be used.',
+            'referral_code.exists'   => 'The entered referral code is invalid or does not exist.',
         ];
     }
 }

@@ -17,6 +17,18 @@ class ProductCategoryRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (empty($this->slug) && !empty($this->name)) {
+            $this->merge([
+                'slug' => \Illuminate\Support\Str::slug($this->name),
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>

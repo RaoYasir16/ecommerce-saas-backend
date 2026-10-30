@@ -28,9 +28,17 @@ class ProductCategory extends Model
 
     public function getImageUrlAttribute()
     {
-        return $this->image
-            ? asset('storage/' . $this->image)
-            : null;
+        if (empty($this->image)) {
+            return null;
+        }
+
+        if (str_starts_with($this->image, 'http://') || str_starts_with($this->image, 'https://')) {
+            return $this->image;
+        }
+
+        $cleanPath = ltrim(preg_replace('#^storage/#', '', $this->image), '/');
+
+        return asset('storage/' . $cleanPath);
     }
 
     public function company()
@@ -40,6 +48,6 @@ class ProductCategory extends Model
 
     public function products()
     {
-        return $this->hasMany(Product::class);
+        return $this->hasMany(Product::class, 'category_id');
     }
 }

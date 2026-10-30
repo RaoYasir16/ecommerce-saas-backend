@@ -5,8 +5,11 @@ namespace App\Http\Controllers\Api\Company;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductCategoryRequest;
 use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Services\Company\ProductServices;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ProductController extends Controller
 {
@@ -25,6 +28,8 @@ class ProductController extends Controller
             $company,
             $request->validated()
         );
+
+        $category->loadCount('products');
 
         return $this->apiResponse(
             true,
@@ -102,12 +107,14 @@ class ProductController extends Controller
                 'Product created successfully.',
                 $product
             );
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (Throwable $e) {
             report($e);
 
             return $this->apiResponse(
                 false,
-                'Unable to create product.',
+                $e->getMessage() ?: 'Unable to create product.',
                 null
             );
         }
@@ -142,12 +149,14 @@ class ProductController extends Controller
                 'Product updated successfully.',
                 $product
             );
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (Throwable $e) {
             report($e);
 
             return $this->apiResponse(
                 false,
-                'Unable to update product.',
+                $e->getMessage() ?: 'Unable to update product.',
                 null
             );
         }
@@ -170,7 +179,7 @@ class ProductController extends Controller
 
             return $this->apiResponse(
                 false,
-                'Unable to delete product.',
+                $e->getMessage() ?: 'Unable to delete product.',
                 null
             );
         }

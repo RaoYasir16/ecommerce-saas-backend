@@ -32,6 +32,7 @@ class StoreSettingRequest extends FormRequest
             // Multiple banner images
             'banners' => ['nullable', 'array'],
             'banners.*' => ['required','image','mimes:jpg,jpeg,png,webp','max:5120',],
+            'existing_banners' => ['nullable'],
 
 
             'use_custom_terms' => ['nullable', 'boolean'],
@@ -40,9 +41,9 @@ class StoreSettingRequest extends FormRequest
             'support_email' => ['nullable', 'email', 'max:255'],
             'support_phone' => ['nullable', 'string', 'max:30'],
 
-            'facebook_url' => ['nullable', 'url', 'max:500'],
-            'instagram_url' => ['nullable', 'url', 'max:500'],
-            'tiktok_url' => ['nullable', 'url', 'max:500'],
+            'facebook_url' => ['nullable', 'string', 'max:500'],
+            'instagram_url' => ['nullable', 'string', 'max:500'],
+            'tiktok_url' => ['nullable', 'string', 'max:500'],
 
             'show_announcement' => ['nullable', 'boolean'],
             'announcement_text' => ['nullable', 'string', 'max:1000'],
