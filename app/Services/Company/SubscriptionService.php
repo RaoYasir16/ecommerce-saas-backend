@@ -5,6 +5,7 @@ namespace App\Services\Company;
 use App\Models\Company;
 use App\Models\CompanySubscription;
 use App\Models\PlatformSetting;
+use App\Models\PlatformWallet;
 use App\Models\ReferralCommission;
 use App\Models\SubscriptionPlan;
 use App\Models\WalletTransaction;
@@ -197,6 +198,7 @@ class SubscriptionService
             }
 
             // Referral Commission Calculation & Distribution
+            $commissionAmount = 0.00;
             if ($company->referred_by && $price > 0) {
                 $referrer = Company::find($company->referred_by);
                 $commissionPercentage = PlatformSetting::getReferralCommissionPercentage();
@@ -240,6 +242,32 @@ class SubscriptionService
                         ]);
                     }
                 }
+            }
+
+            // Platform Wallet Credit: Remaining amount after referral commission cut goes into Platform Wallet
+            $platformNetAmount = round($price - $commissionAmount, 2);
+            if ($price > 0 && $platformNetAmount > 0) {
+                $platformWallet = PlatformWallet::instance();
+                $platformWallet->credit(
+                    netAmount: $platformNetAmount,
+                    grossAmount: $price,
+                    commissionDeducted: $commissionAmount,
+                    source: 'subscription_sale',
+                    description: "Subscription payment from {$company->name} for {$plan->name} ({$billingCycle})" . ($commissionAmount > 0 ? " [Net after PKR " . number_format($commissionAmount, 2) . " referral commission]" : ""),
+                    company: $company,
+                    referenceId: 'SUB-' . $subscription->id,
+                    metadata: [
+                        'company_id' => $company->id,
+                        'company_name' => $company->name,
+                        'subscription_id' => $subscription->id,
+                        'plan_id' => $plan->id,
+                        'plan_name' => $plan->name,
+                        'billing_cycle' => $billingCycle,
+                        'gross_price' => $price,
+                        'referral_commission' => $commissionAmount,
+                        'referrer_company_id' => $company->referred_by ?? null,
+                    ]
+                );
             }
 
             return [

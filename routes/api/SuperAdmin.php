@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\SuperAdmin\UserController;
 use App\Http\Controllers\Api\SuperAdmin\OrderController;
 use App\Http\Controllers\Api\SuperAdmin\SubscriptionPlanController;
 use App\Http\Controllers\Api\SuperAdmin\PlatformSettingController;
+use App\Http\Controllers\Api\SuperAdmin\PlatformWalletController;
 
 Route::prefix('super-admin')->group(function () {
 
@@ -58,6 +59,14 @@ Route::prefix('super-admin')->group(function () {
             Route::get('/', [PlatformSettingController::class, 'getSettings']);
             Route::post('/', [PlatformSettingController::class, 'updateSettings']);
             Route::put('/', [PlatformSettingController::class, 'updateSettings']);
+        });
+
+        // Platform Treasury & Master Wallet
+        Route::prefix('platform-wallet')->group(function () {
+            Route::get('/', [PlatformWalletController::class, 'getWallet']);
+            Route::post('/currency', [PlatformWalletController::class, 'updateCurrency']);
+            Route::post('/adjust', [PlatformWalletController::class, 'adjustBalance']);
+            Route::get('/transactions', [PlatformWalletController::class, 'transactions']);
         });
 
         Route::get('/referrals', [PlatformSettingController::class, 'referralOverview']);
