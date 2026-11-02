@@ -2,6 +2,7 @@
 
 namespace App\Services\Company;
 
+use App\Jobs\CreateCompanySubdomainJob;
 use App\Models\Company;
 use App\Models\Otp;
 use App\Models\Role;
@@ -57,9 +58,33 @@ class AuthService
      */
     public function register(array $data): array
     {
-        $result = DB::transaction(function () use ($data) {
-            $subdomain = Str::slug($data['subdomain']);
+        $subdomain = Str::slug($data['subdomain']);
 
+        // Block reserved subdomains
+        $reserved = ['admin', 'api', 'www', 'mail', 'dashboard', 'root', 'support'];
+        if (in_array($subdomain, $reserved)) {
+            throw ValidationException::withMessages([
+                'subdomain' => ['This subdomain is reserved and cannot be used.'],
+            ]);
+        }
+
+        // Prevent duplicate subdomain
+        if (Company::where('subdomain', $subdomain)->exists()) {
+            throw ValidationException::withMessages([
+                'subdomain' => ['This shop link (subdomain) is already taken. Please choose another.'],
+            ]);
+        }
+
+        $baseDomain = config('services.hostinger.domain', config('app.main_domain', 'noorwear.pk'));
+        $fullDomain = "{$subdomain}.{$baseDomain}";
+
+        if (Company::where('domain', $fullDomain)->exists()) {
+            throw ValidationException::withMessages([
+                'subdomain' => ['This domain is already registered. Please choose another subdomain.'],
+            ]);
+        }
+
+        $result = DB::transaction(function () use ($data, $subdomain, $fullDomain) {
             /*
              * Logo Upload
              */
@@ -88,11 +113,13 @@ class AuthService
             }
 
             /*
-             * Create Company
+             * Create Company with Domain & Pending Status
              */
             $company = Company::create([
                 'name' => $data['company_name'],
                 'subdomain' => $subdomain,
+                'domain' => $fullDomain,
+                'domain_status' => 'pending',
                 'whatsapp_number' => $data['whatsapp_number'] ?? null,
                 'logo' => $logoPath,
                 'trial_ends_at' => now()->addMonth(),
@@ -155,6 +182,13 @@ class AuthService
                 'otp' => $otp,
             ];
         });
+
+        /*
+         * Dispatch Hostinger subdomain creation job AFTER the database transaction commits.
+         * The API is never called synchronously inside the transaction, and any remote failure
+         * will not roll back the successfully registered company.
+         */
+        CreateCompanySubdomainJob::dispatch($result['company']->id)->afterCommit();
 
         /*
          * Send Verification Email with OTP
@@ -341,12 +375,16 @@ class AuthService
      */
     private function formatCompany(Company $company): array
     {
+        $baseDomain = config('services.hostinger.domain', config('app.main_domain', 'noorwear.pk'));
+        $domain = $company->domain ?: "{$company->subdomain}.{$baseDomain}";
+
         return [
             'id' => $company->id,
             'name' => $company->name,
             'subdomain' => $company->subdomain,
-            'store_url' => "https://{$company->subdomain}."
-                . config('app.main_domain', 'example.com'),
+            'domain' => $domain,
+            'domain_status' => $company->domain_status ?? 'pending',
+            'store_url' => "https://{$domain}",
             'whatsapp_number' => $company->whatsapp_number,
             'logo_url' => $company->logo
                 ? asset('storage/' . $company->logo)

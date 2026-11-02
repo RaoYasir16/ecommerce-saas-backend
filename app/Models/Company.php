@@ -14,6 +14,8 @@ class Company extends Model
     protected $fillable = [
         'name',
         'subdomain',
+        'domain',
+        'domain_status',
         'logo',
         'whatsapp_number',
         'email',
@@ -26,6 +28,7 @@ class Company extends Model
 
     protected $casts = [
         'trial_ends_at' => 'datetime',
+        'domain_status' => 'string',
     ];
 
     protected $appends = [

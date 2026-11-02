@@ -18,6 +18,13 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
+    // Hostinger
+    'hostinger' => [
+        'api_token' => env('HOSTINGER_API_TOKEN'),
+        'username' => env('HOSTINGER_USERNAME'),
+        'domain' => env('HOSTINGER_DOMAIN', 'noorwear.pk'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_API_KEY'),
     ],

@@ -21,6 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->redirectGuestsTo(fn(Request $request) => null);
+        $middleware->alias([
+            'tenant' => \App\Http\Middleware\IdentifyTenant::class,
+            'resolve.store' => \App\Http\Middleware\ResolveStore::class,
+        ]);
     })
 
     ->withExceptions(function (Exceptions $exceptions) {

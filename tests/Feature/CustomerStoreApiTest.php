@@ -78,23 +78,23 @@ class CustomerStoreApiTest extends TestCase
 
         // Add to favorite
         $response = $this->withHeader('X-Store-Subdomain', 'teststore')
-            ->postJson('/api/customer/favrot/add', [
+            ->postJson('/api/customer/favorite/add-remove', [
                 'product_id' => $this->product->id,
             ]);
 
-        $response->assertStatus(201)
+        $response->assertStatus(200)
             ->assertJsonPath('status', true);
 
         // Get favorites
         $getResponse = $this->withHeader('X-Store-Subdomain', 'teststore')
-            ->getJson('/api/customer/favrot/get-all');
+            ->getJson('/api/customer/favorite/get-all');
 
         $getResponse->assertStatus(200)
             ->assertJsonPath('status', true);
 
-        // Remove from favorite
+        // Remove from favorite (toggle off)
         $removeResponse = $this->withHeader('X-Store-Subdomain', 'teststore')
-            ->postJson('/api/customer/favrot/remove', [
+            ->postJson('/api/customer/favorite/add-remove', [
                 'product_id' => $this->product->id,
             ]);
 
@@ -116,6 +116,8 @@ class CustomerStoreApiTest extends TestCase
         $addResponse->assertStatus(201)
             ->assertJsonPath('status', true)
             ->assertJsonPath('data.quantity', 2);
+
+        $cartItemId = $addResponse->json('data.id');
 
         // Get cart
         $getResponse = $this->withHeader('X-Store-Subdomain', 'teststore')
@@ -139,9 +141,7 @@ class CustomerStoreApiTest extends TestCase
 
         // Remove from cart
         $removeResponse = $this->withHeader('X-Store-Subdomain', 'teststore')
-            ->deleteJson('/api/customer/add-to-cart/remove', [
-                'product_id' => $this->product->id,
-            ]);
+            ->deleteJson("/api/customer/add-to-cart/remove/{$cartItemId}");
 
         $removeResponse->assertStatus(200)
             ->assertJsonPath('status', true);
@@ -258,9 +258,9 @@ class CustomerStoreApiTest extends TestCase
             'is_available' => true,
         ]);
 
-        // Add variant to cart via direct alias route (/api/cart/add)
+        // Add variant to cart
         $addResponse = $this->withHeader('X-Store-Subdomain', 'teststore')
-            ->postJson('/api/cart/add', [
+            ->postJson('/api/customer/add-to-cart/add', [
                 'product_id' => $variantProduct->id,
                 'product_variant_id' => $variant->id,
                 'quantity' => 2,
@@ -269,9 +269,9 @@ class CustomerStoreApiTest extends TestCase
         $addResponse->assertStatus(201)
             ->assertJsonPath('status', true);
 
-        // Place order with direct items via /api/order/place
+        // Place order with direct items via /api/customer/order/place
         $orderResponse = $this->withHeader('X-Store-Subdomain', 'teststore')
-            ->postJson('/api/order/place', [
+            ->postJson('/api/customer/order/place', [
                 'customer_name' => 'Jane Customer',
                 'customer_phone' => '03111234567',
                 'shipping_address' => '456 Commercial Area',
@@ -295,7 +295,7 @@ class CustomerStoreApiTest extends TestCase
 
         // Cancel order -> Stock should be restored to 10
         $cancelResponse = $this->withHeader('X-Store-Subdomain', 'teststore')
-            ->postJson('/api/order/cancel', [
+            ->postJson('/api/customer/order/cancel', [
                 'order_id' => $orderId,
                 'reason' => 'Ordered wrong size',
             ]);
