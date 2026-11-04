@@ -333,6 +333,15 @@ class StoreService
 
     public function placeOrder($company, $user, array $data): Order
     {
+        if (!$company) {
+            throw new HttpException(404, 'Store company not found.');
+        }
+
+        $orderCheck = $company->canAcceptOrder();
+        if (!$orderCheck['allowed']) {
+            throw new HttpException(403, $orderCheck['message']);
+        }
+
         return DB::transaction(function () use ($company, $user, $data) {
             $preparedItems = [];
             $cartItemsToDelete = [];

@@ -61,11 +61,15 @@ class CreateCompanySubdomainJob implements ShouldQueue
             return;
         }
 
-        // If Hostinger credentials are not configured (e.g. local environment or testing), skip gracefully
+        // If Hostinger credentials are not configured (e.g. local environment or wildcard subdomain setup),
+        // activate domain status automatically since wildcard DNS handles routing.
         if (!$hostingerService->isConfigured()) {
-            Log::warning("CreateCompanySubdomainJob: Hostinger API credentials are not configured. Subdomain creation skipped.", [
+            Log::info("CreateCompanySubdomainJob: Hostinger API credentials are not configured. Subdomain activated via wildcard routing.", [
                 'company_id' => $company->id,
                 'subdomain' => $company->subdomain,
+            ]);
+            $company->update([
+                'domain_status' => 'active',
             ]);
             return;
         }
@@ -81,6 +85,9 @@ class CreateCompanySubdomainJob implements ShouldQueue
             $company->update([
                 'domain_status' => 'active',
             ]);
+
+            // Link single storefront codebase to the newly created Hostinger subdomain folder
+            $this->linkStorefrontFiles($company->subdomain);
 
             Log::info("CreateCompanySubdomainJob: Hostinger subdomain successfully activated for company {$company->id}.", [
                 'subdomain' => $company->subdomain,
@@ -101,6 +108,81 @@ class CreateCompanySubdomainJob implements ShouldQueue
         ]);
 
         throw new RuntimeException("Hostinger subdomain creation failed: {$errorMessage}");
+    }
+
+    /**
+     * Copy multi-tenant storefront files into the Hostinger subdomain directory.
+     */
+    protected function linkStorefrontFiles(string $subdomain): void
+    {
+        try {
+            $clean = \Illuminate\Support\Str::slug($subdomain);
+            $mainStoreDir = '/home/u556423993/domains/noorwear.pk/public_html';
+
+            $targetDirs = [
+                "{$mainStoreDir}/{$clean}",
+                "{$mainStoreDir}/subdomain/{$clean}",
+                "/home/u556423993/domains/{$clean}.noorwear.pk/public_html",
+            ];
+
+            // Wait a brief moment if Hostinger is creating directory
+            sleep(1);
+
+            foreach ($targetDirs as $subdomainDir) {
+                $parent = dirname($subdomainDir);
+                if (is_dir($parent) || is_dir($subdomainDir)) {
+                    if (!is_dir($subdomainDir)) {
+                        @mkdir($subdomainDir, 0755, true);
+                    }
+
+                    if (is_dir($subdomainDir)) {
+                        @unlink("{$subdomainDir}/default.php");
+
+                        foreach (['index.html', 'favicon.svg', 'icons.svg', '.htaccess'] as $file) {
+                            $source = "{$mainStoreDir}/{$file}";
+                            if (file_exists($source)) {
+                                @copy($source, "{$subdomainDir}/{$file}");
+                            }
+                        }
+
+                        $this->copyDirectory("{$mainStoreDir}/assets", "{$subdomainDir}/assets");
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("linkStorefrontFiles handled exception for {$subdomain}: " . $e->getMessage());
+        }
+    }
+
+    protected function copyDirectory(string $src, string $dst): void
+    {
+        if (!is_dir($src)) {
+            return;
+        }
+
+        if (!is_dir($dst)) {
+            @mkdir($dst, 0755, true);
+        }
+
+        $dir = @opendir($src);
+        if (!$dir) {
+            return;
+        }
+
+        while (($file = readdir($dir)) !== false) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            $srcPath = "{$src}/{$file}";
+            $dstPath = "{$dst}/{$file}";
+
+            if (is_dir($srcPath)) {
+                $this->copyDirectory($srcPath, $dstPath);
+            } else {
+                @copy($srcPath, $dstPath);
+            }
+        }
+        closedir($dir);
     }
 
     /**

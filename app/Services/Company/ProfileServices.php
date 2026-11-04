@@ -147,6 +147,10 @@ class ProfileServices
             ]);
         }
 
+        $storeSetting->logo = $company->logo;
+        $storeSetting->logo_url = $company->logo_url;
+        $storeSetting->company_name = $company->name;
+
         return $storeSetting;
     }
 
@@ -160,6 +164,16 @@ class ProfileServices
             $storeSetting = StoreSetting::firstOrCreate([
                 'company_id' => $company->id,
             ]);
+
+            // Logo upload
+            if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
+                if ($company->logo) {
+                    $this->deleteFile($company->logo);
+                }
+                $logoPath = $this->uploadFile($data['logo'], 'companies/logos');
+                $company->update(['logo' => $logoPath]);
+            }
+            unset($data['logo']);
 
             // banner logic
             $hasNewBanners = isset($data['banners']) && is_array($data['banners']);
@@ -217,7 +231,12 @@ class ProfileServices
 
             $storeSetting->update($data);
 
-            return $storeSetting->fresh();
+            $fresh = $storeSetting->fresh();
+            $fresh->logo = $company->logo;
+            $fresh->logo_url = $company->logo_url;
+            $fresh->company_name = $company->name;
+
+            return $fresh;
         });
     }
 }

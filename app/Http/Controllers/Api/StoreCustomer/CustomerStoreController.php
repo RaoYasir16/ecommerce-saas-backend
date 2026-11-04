@@ -127,6 +127,20 @@ class CustomerStoreController extends Controller
         $company = $request->attributes->get('storeCompany');
         $user = $request->user();
 
+        if (!$company) {
+            return $this->apiResponse(false, 'Store not found.', null, 404);
+        }
+
+        $orderCheck = $company->canAcceptOrder();
+        if (!$orderCheck['allowed']) {
+            return $this->apiResponse(
+                false,
+                $orderCheck['message'],
+                $orderCheck,
+                403
+            );
+        }
+
         $order = $this->storeService->placeOrder($company, $user, $request->validated());
 
         return $this->apiResponse(true, 'Order placed successfully.', $order, 201);

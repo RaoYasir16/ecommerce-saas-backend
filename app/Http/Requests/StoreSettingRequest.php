@@ -29,6 +29,9 @@ class StoreSettingRequest extends FormRequest
             'header_bg_color' => ['nullable', 'string', 'max:20'],
             'footer_bg_color' => ['nullable', 'string', 'max:20'],
 
+            // Logo image upload
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:5120'],
+
             // Multiple banner images
             'banners' => ['nullable', 'array'],
             'banners.*' => ['required','image','mimes:jpg,jpeg,png,webp','max:5120',],

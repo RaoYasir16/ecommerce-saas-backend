@@ -125,6 +125,11 @@ class ProductServices
 
     public function createProduct($company, array $data): Product
     {
+        $planCheck = $company->canAddProduct();
+        if (!$planCheck['allowed']) {
+            throw new HttpException(403, $planCheck['message']);
+        }
+
         return DB::transaction(function () use ($company, $data) {
             $this->validateCompanyCategory(
                 $company->id,

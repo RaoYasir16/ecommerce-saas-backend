@@ -26,4 +26,3 @@ Route::get('/storage/{path}', function (string $path) {
 require __DIR__ . '/api/company.php';
 require __DIR__ . '/api/customer.php';
 require __DIR__ . '/api/SuperAdmin.php';
-

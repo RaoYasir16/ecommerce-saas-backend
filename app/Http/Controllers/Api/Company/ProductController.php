@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Services\Company\ProductServices;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Throwable;
 
 class ProductController extends Controller
@@ -96,6 +97,26 @@ class ProductController extends Controller
     {
         $company = auth()->user()->company;
 
+        if (!$company) {
+            return $this->apiResponse(
+                false,
+                'Company not found.',
+                null,
+                404
+            );
+        }
+
+        // Check active plan and product limit
+        $planCheck = $company->canAddProduct();
+        if (!$planCheck['allowed']) {
+            return $this->apiResponse(
+                false,
+                $planCheck['message'],
+                $planCheck,
+                403
+            );
+        }
+
         try {
             $product = $this->productService->createProduct(
                 $company,
@@ -109,6 +130,13 @@ class ProductController extends Controller
             );
         } catch (ValidationException $e) {
             throw $e;
+        } catch (HttpException $e) {
+            return $this->apiResponse(
+                false,
+                $e->getMessage(),
+                null,
+                $e->getStatusCode()
+            );
         } catch (Throwable $e) {
             report($e);
 
