@@ -286,7 +286,7 @@ class AuthService
             throw new HttpException(404, 'User not found.');
         }
 
-        $expiry = 10;
+        $expiry = 5;
         $otpCode = (string) random_int(100000, 999999);
 
         DB::transaction(function () use ($user, $type, $otpCode, $expiry) {
