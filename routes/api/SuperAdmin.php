@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\SuperAdmin\OrderController;
 use App\Http\Controllers\Api\SuperAdmin\SubscriptionPlanController;
 use App\Http\Controllers\Api\SuperAdmin\PlatformSettingController;
 use App\Http\Controllers\Api\SuperAdmin\PlatformWalletController;
+use App\Http\Controllers\Api\SuperAdmin\ActivityLogController;
 
 Route::prefix('super-admin')->group(function () {
 
@@ -70,5 +71,11 @@ Route::prefix('super-admin')->group(function () {
         });
 
         Route::get('/referrals', [PlatformSettingController::class, 'referralOverview']);
+
+        // Platform Activity Logs
+        Route::prefix('activities')->group(function () {
+            Route::get('/', [ActivityLogController::class, 'index']);
+            Route::get('/{id}', [ActivityLogController::class, 'show']);
+        });
     });
 });

@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Company\ProfileController;
 use App\Http\Controllers\Api\Company\WalletController;
 use App\Http\Controllers\Api\Company\SubscriptionController;
 use App\Http\Controllers\Api\Company\ReferralController;
+use App\Http\Controllers\Api\Company\ActivityLogController;
 use App\Http\Middleware\EnsureCompanyAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -80,6 +81,13 @@ Route::prefix('company')->group(function () {
         // Referral System Management
         Route::prefix('referrals')->group(function () {
             Route::get('/', [ReferralController::class, 'index']);
+        });
+
+        // Activity Logs
+        Route::prefix('activities')->group(function () {
+            Route::get('/', [ActivityLogController::class, 'index']);
+            Route::get('/types', [ActivityLogController::class, 'types']);
+            Route::get('/{id}', [ActivityLogController::class, 'show']);
         });
     });
 });

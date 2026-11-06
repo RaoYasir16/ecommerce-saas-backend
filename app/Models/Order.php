@@ -4,10 +4,33 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Order extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'status',
+                'payment_status',
+                'payment_method',
+                'customer_name',
+                'customer_email',
+                'customer_phone',
+                'shipping_address',
+                'city',
+                'total_amount',
+                'cancel_reason',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('order')
+            ->setDescriptionForEvent(fn(string $eventName) => "Order #{$this->order_number} was {$eventName}");
+    }
 
     protected $fillable = [
         'company_id',
