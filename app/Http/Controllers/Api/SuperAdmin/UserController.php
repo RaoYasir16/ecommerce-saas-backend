@@ -46,4 +46,25 @@ class UserController extends Controller
             $users
         );
     }
+
+    /**
+     * Update user active status.
+     */
+    public function updateStatus(Request $request, $id): JsonResponse
+    {
+        $user = \App\Models\User::findOrFail($id);
+
+        $isActive = $request->has('is_active')
+            ? filter_var($request->input('is_active'), FILTER_VALIDATE_BOOLEAN)
+            : ($request->input('status') === 'active');
+
+        $user->is_active = $isActive;
+        $user->save();
+
+        return $this->apiResponse(
+            true,
+            "User account has been successfully " . ($user->is_active ? 'activated' : 'deactivated') . '.',
+            $user->fresh(['company', 'role'])
+        );
+    }
 }

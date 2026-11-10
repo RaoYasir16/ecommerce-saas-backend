@@ -29,10 +29,22 @@ class StoreSetting extends Model
         'header_bg_color',
         'footer_bg_color',
         'banners',
+        'hero_type',
+        'hero_badge',
+        'hero_title',
+        'hero_subtitle',
+        'hero_image',
+        'hero_button_text',
+        'hero_button_link',
+        'hero_features',
         'use_custom_terms',
         'terms_and_conditions',
         'support_email',
         'support_phone',
+        'city',
+        'province',
+        'country',
+        'google_map_url',
         'facebook_url',
         'instagram_url',
         'tiktok_url',
@@ -40,11 +52,39 @@ class StoreSetting extends Model
         'announcement_text',
         'footer_text',
     ];
+
     protected $casts = [
         'banners' => 'array',
+        'hero_features' => 'array',
         'use_custom_terms' => 'boolean',
         'show_announcement' => 'boolean',
     ];
+
+    protected $appends = [
+        'hero_image_url',
+        'store_location',
+    ];
+
+    public function getStoreLocationAttribute(): ?string
+    {
+        $parts = array_values(array_filter([$this->city, $this->province, $this->country]));
+        return count($parts) > 0 ? implode(', ', $parts) : null;
+    }
+
+    public function getHeroImageUrlAttribute()
+    {
+        if (empty($this->hero_image)) {
+            return null;
+        }
+
+        if (str_starts_with($this->hero_image, 'http://') || str_starts_with($this->hero_image, 'https://')) {
+            return $this->hero_image;
+        }
+
+        $cleanPath = ltrim(preg_replace('#^storage/#', '', $this->hero_image), '/');
+
+        return asset('storage/' . $cleanPath);
+    }
 
     public function getBannersAttribute($value)
     {

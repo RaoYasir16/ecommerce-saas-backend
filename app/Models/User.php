@@ -20,11 +20,11 @@ class User extends Authenticatable
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'email', 'role'])
+            ->logOnly(['name', 'email', 'role', 'is_active'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('user')
-            ->setDescriptionForEvent(fn(string $eventName) => "User '{$this->name}' was {$eventName}");
+            ->setDescriptionForEvent(fn(string $eventName) => "User account '{$this->name}' was {$eventName}");
     }
 
     /**
@@ -38,7 +38,17 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_active',
     ];
+
+    protected $appends = [
+        'status',
+    ];
+
+    public function getStatusAttribute(): string
+    {
+        return ($this->is_active ?? true) ? 'active' : 'inactive';
+    }
 
     /**
      * The attributes that should be hidden for serialization.
@@ -60,6 +70,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
     }
 

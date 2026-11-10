@@ -44,6 +44,7 @@ Route::prefix('super-admin')->group(function () {
         });
 
         Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users/{id}/status', [UserController::class, 'updateStatus']);
         Route::get('/orders', [OrderController::class, 'index']);
 
         Route::prefix('/subscription-plans')->group(function () {

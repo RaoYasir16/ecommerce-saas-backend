@@ -29,13 +29,25 @@ class StoreSettingRequest extends FormRequest
             'header_bg_color' => ['nullable', 'string', 'max:20'],
             'footer_bg_color' => ['nullable', 'string', 'max:20'],
 
-            // Logo image upload
+            // Logo image upload / removal
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:5120'],
+            'remove_logo' => ['nullable'],
 
             // Multiple banner images
             'banners' => ['nullable', 'array'],
             'banners.*' => ['required','image','mimes:jpg,jpeg,png,webp','max:5120',],
             'existing_banners' => ['nullable'],
+
+            // Hero section options
+            'hero_type' => ['nullable', 'string', 'in:split,slider'],
+            'hero_badge' => ['nullable', 'string', 'max:255'],
+            'hero_title' => ['nullable', 'string', 'max:255'],
+            'hero_subtitle' => ['nullable', 'string', 'max:2000'],
+            'hero_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'max:5120'],
+            'remove_hero_image' => ['nullable'],
+            'hero_button_text' => ['nullable', 'string', 'max:100'],
+            'hero_button_link' => ['nullable', 'string', 'max:255'],
+            'hero_features' => ['nullable'],
 
 
             'use_custom_terms' => ['nullable', 'boolean'],
@@ -43,6 +55,11 @@ class StoreSettingRequest extends FormRequest
 
             'support_email' => ['nullable', 'email', 'max:255'],
             'support_phone' => ['nullable', 'string', 'max:30'],
+
+            'city' => ['nullable', 'string', 'max:100'],
+            'province' => ['nullable', 'string', 'max:100'],
+            'country' => ['nullable', 'string', 'max:100'],
+            'google_map_url' => ['nullable', 'string', 'max:1000'],
 
             'facebook_url' => ['nullable', 'string', 'max:500'],
             'instagram_url' => ['nullable', 'string', 'max:500'],

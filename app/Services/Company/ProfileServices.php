@@ -165,15 +165,20 @@ class ProfileServices
                 'company_id' => $company->id,
             ]);
 
-            // Logo upload
+            // Logo upload / remove
             if (isset($data['logo']) && $data['logo'] instanceof \Illuminate\Http\UploadedFile) {
                 if ($company->logo) {
                     $this->deleteFile($company->logo);
                 }
                 $logoPath = $this->uploadFile($data['logo'], 'companies/logos');
                 $company->update(['logo' => $logoPath]);
+            } elseif (isset($data['remove_logo']) && filter_var($data['remove_logo'], FILTER_VALIDATE_BOOLEAN)) {
+                if ($company->logo) {
+                    $this->deleteFile($company->logo);
+                }
+                $company->update(['logo' => null]);
             }
-            unset($data['logo']);
+            unset($data['logo'], $data['remove_logo']);
 
             // banner logic
             $hasNewBanners = isset($data['banners']) && is_array($data['banners']);
@@ -229,8 +234,55 @@ class ProfileServices
                 unset($data['existing_banners']);
             }
 
+            // Hero image upload / remove
+            if (isset($data['hero_image']) && $data['hero_image'] instanceof \Illuminate\Http\UploadedFile) {
+                if ($storeSetting->hero_image) {
+                    $this->deleteFile($storeSetting->hero_image);
+                }
+                $heroPath = $this->uploadFile($data['hero_image'], 'store-hero');
+                $data['hero_image'] = $heroPath;
+            } elseif (isset($data['remove_hero_image']) && filter_var($data['remove_hero_image'], FILTER_VALIDATE_BOOLEAN)) {
+                if ($storeSetting->hero_image) {
+                    $this->deleteFile($storeSetting->hero_image);
+                }
+                $data['hero_image'] = null;
+            }
+            unset($data['remove_hero_image']);
+
+            // hero_features JSON decode if passed as string/JSON from multipart
+            if (isset($data['hero_features'])) {
+                if (is_string($data['hero_features'])) {
+                    $decoded = json_decode($data['hero_features'], true);
+                    $data['hero_features'] = is_array($decoded)
+                        ? $decoded
+                        : array_values(array_filter(array_map('trim', explode(',', $data['hero_features']))));
+                }
+            }
+
             $storeSetting->update($data);
 
+            $companyUpdates = [];
+            if (array_key_exists('support_phone', $data) && !empty($data['support_phone'])) {
+                $companyUpdates['whatsapp_number'] = $data['support_phone'];
+            }
+            if (array_key_exists('support_email', $data) && !empty($data['support_email'])) {
+                $companyUpdates['email'] = $data['support_email'];
+            }
+
+            // Also keep company address in sync if location fields are provided
+            $city = array_key_exists('city', $data) ? $data['city'] : $storeSetting->city;
+            $province = array_key_exists('province', $data) ? $data['province'] : $storeSetting->province;
+            $country = array_key_exists('country', $data) ? $data['country'] : $storeSetting->country;
+            $locationParts = array_values(array_filter([$city, $province, $country]));
+            if (!empty($locationParts)) {
+                $companyUpdates['address'] = implode(', ', $locationParts);
+            }
+
+            if (!empty($companyUpdates)) {
+                $company->update($companyUpdates);
+            }
+
+            $company->refresh();
             $fresh = $storeSetting->fresh();
             $fresh->logo = $company->logo;
             $fresh->logo_url = $company->logo_url;
