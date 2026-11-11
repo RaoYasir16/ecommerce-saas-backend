@@ -43,6 +43,13 @@ Route::prefix('super-admin')->group(function () {
             Route::post('/{id}/reject', [CompanyWalletController::class, 'rejectDeposit']);
         });
 
+        // Platform Wallet Withdrawals Approval & Fee Collection
+        Route::prefix('withdrawals')->group(function () {
+            Route::get('/', [CompanyWalletController::class, 'withdrawalRequests']);
+            Route::post('/{id}/approve', [CompanyWalletController::class, 'approveWithdrawal']);
+            Route::post('/{id}/reject', [CompanyWalletController::class, 'rejectWithdrawal']);
+        });
+
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users/{id}/status', [UserController::class, 'updateStatus']);
         Route::get('/orders', [OrderController::class, 'index']);

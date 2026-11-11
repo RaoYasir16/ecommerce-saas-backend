@@ -211,4 +211,89 @@ class WalletController extends Controller
             );
         }
     }
+
+    /**
+     * Get merchant's withdrawal requests list directly by company_wallet_id.
+     */
+    public function withdrawals(Request $request): JsonResponse
+    {
+        $wallet = $this->getAuthenticatedWallet();
+
+        if (!$wallet) {
+            return $this->apiResponse(false, 'Merchant wallet not found.', null, 404);
+        }
+
+        $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
+            'search' => ['nullable', 'string'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        try {
+            $withdrawals = $this->walletService->getWithdrawalRequests(
+                $wallet,
+                $request->only(['status', 'search', 'per_page'])
+            );
+
+            return $this->apiResponse(
+                true,
+                'Withdrawal requests retrieved successfully.',
+                $withdrawals
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->apiResponse(
+                false,
+                'Failed to retrieve withdrawal requests: ' . $e->getMessage(),
+                null,
+                500
+            );
+        }
+    }
+
+    /**
+     * Submit a new withdrawal request with dynamic platform fee deduction.
+     */
+    public function createWithdrawal(Request $request): JsonResponse
+    {
+        $wallet = $this->getAuthenticatedWallet();
+
+        if (!$wallet) {
+            return $this->apiResponse(false, 'Merchant wallet not found.', null, 404);
+        }
+
+        $request->validate([
+            'amount' => ['required', 'numeric', 'min:1'],
+            'payment_method' => ['required', 'string', 'in:bank_transfer,easypaisa,jazzcash,raast'],
+            'bank_name' => ['nullable', 'string', 'max:150'],
+            'account_title' => ['required', 'string', 'max:150'],
+            'account_number' => ['required', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        try {
+            $result = $this->walletService->createWithdrawalRequest(
+                $wallet,
+                (float) $request->input('amount'),
+                $request->only(['payment_method', 'bank_name', 'account_title', 'account_number', 'notes'])
+            );
+
+            return $this->apiResponse(
+                true,
+                'Withdrawal request submitted successfully. Funds are placed on hold pending administration payout.',
+                $result,
+                201
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->apiResponse(
+                false,
+                'Failed to submit withdrawal request: ' . $e->getMessage(),
+                null,
+                400
+            );
+        }
+    }
 }

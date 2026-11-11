@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\SubscriptionPlan;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class SubscriptionPlanSeeder extends Seeder
 {
@@ -12,6 +13,24 @@ class SubscriptionPlanSeeder extends Seeder
      */
     public function run(): void
     {
+        $targetSlugs = ['starter', 'pro', 'enterprise'];
+        $referencedIds = collect()
+            ->merge(DB::table('company_subscription')->pluck('subscription_plan_id'))
+            ->merge(DB::table('referral_commissions')->pluck('subscription_plan_id'))
+            ->filter()
+            ->unique()
+            ->all();
+
+        // Remove any legacy/dummy plans not in target slugs when safe, otherwise deactivate
+        SubscriptionPlan::whereNotIn('slug', $targetSlugs)
+            ->when(!empty($referencedIds), fn($q) => $q->whereNotIn('id', $referencedIds))
+            ->delete();
+
+        if (!empty($referencedIds)) {
+            SubscriptionPlan::whereNotIn('slug', $targetSlugs)
+                ->whereIn('id', $referencedIds)
+                ->update(['is_active' => false]);
+        }
         $plans = [
             [
                 'name' => 'Starter Store',
@@ -26,7 +45,7 @@ class SubscriptionPlanSeeder extends Seeder
                 'features' => [
                     'Up to 50 active products',
                     'Up to 200 orders per month',
-                    'Free automated subdomain (store.shopflow.io)',
+                    'Free automated subdomain (store.noorwear.pk)',
                     'Standard SSL certificate included',
                     'Standard email support',
                     'Basic order management & CSV export'

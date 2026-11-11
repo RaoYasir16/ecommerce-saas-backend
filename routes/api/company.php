@@ -31,6 +31,7 @@ Route::prefix('company')->group(function () {
         // Orders Management
         Route::prefix('orders')->group(function () {
             Route::get('/', [OrderController::class, 'index']);
+            Route::get('/summary', [OrderController::class, 'summary']);
             Route::get('/single/{id}', [OrderController::class, 'show']);
             Route::post('/{id}/status', [OrderController::class, 'updateStatus']);
         });
@@ -66,6 +67,8 @@ Route::prefix('company')->group(function () {
             Route::get('/payment-details', [WalletController::class, 'paymentDetails']);
             Route::get('/deposits', [WalletController::class, 'deposits']);
             Route::post('/deposits', [WalletController::class, 'createDeposit']);
+            Route::get('/withdrawals', [WalletController::class, 'withdrawals']);
+            Route::post('/withdrawals', [WalletController::class, 'createWithdrawal']);
         });
 
         // Subscription Management

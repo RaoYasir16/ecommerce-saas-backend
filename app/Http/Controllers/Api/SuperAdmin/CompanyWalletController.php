@@ -280,4 +280,115 @@ class CompanyWalletController extends Controller
             );
         }
     }
+
+    /**
+     * Get all merchant withdrawal requests across platform.
+     */
+    public function withdrawalRequests(Request $request): JsonResponse
+    {
+        $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,approved,rejected'],
+            'company_id' => ['nullable', 'integer'],
+            'search' => ['nullable', 'string'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        try {
+            $withdrawals = $this->walletService->getAllWithdrawalRequests(
+                $request->only(['status', 'company_id', 'search', 'per_page'])
+            );
+
+            return $this->apiResponse(
+                true,
+                'Withdrawal requests fetched successfully.',
+                $withdrawals
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->apiResponse(
+                false,
+                'Failed to fetch withdrawal requests: ' . $e->getMessage(),
+                null,
+                500
+            );
+        }
+    }
+
+    /**
+     * Approve a merchant withdrawal request, mark payout complete,
+     * and collect the platform fee into PlatformWallet.
+     */
+    public function approveWithdrawal(Request $request, int|string $id): JsonResponse
+    {
+        $request->validate([
+            'admin_notes' => ['nullable', 'string', 'max:500'],
+            'payout_reference' => ['nullable', 'string', 'max:255'],
+            'payout_receipt' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:5120'],
+        ]);
+
+        try {
+            $admin = auth('admin')->user();
+            $adminId = $admin ? $admin->id : null;
+
+            $result = $this->walletService->approveWithdrawalRequest(
+                $id,
+                $adminId,
+                $request->input('admin_notes'),
+                $request->input('payout_reference'),
+                $request->file('payout_receipt')
+            );
+
+            return $this->apiResponse(
+                true,
+                'Withdrawal request approved and platform fee collected successfully.',
+                $result
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->apiResponse(
+                false,
+                'Failed to approve withdrawal: ' . $e->getMessage(),
+                null,
+                400
+            );
+        }
+    }
+
+    /**
+     * Reject a withdrawal request with reason and refund held funds to merchant wallet.
+     */
+    public function rejectWithdrawal(Request $request, int|string $id): JsonResponse
+    {
+        $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        try {
+            $admin = auth('admin')->user();
+            $adminId = $admin ? $admin->id : null;
+
+            $result = $this->walletService->rejectWithdrawalRequest(
+                $id,
+                $adminId,
+                $request->input('reason')
+            );
+
+            return $this->apiResponse(
+                true,
+                'Withdrawal request rejected and funds refunded back to merchant wallet.',
+                $result
+            );
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->apiResponse(
+                false,
+                'Failed to reject withdrawal: ' . $e->getMessage(),
+                null,
+                400
+            );
+        }
+    }
 }

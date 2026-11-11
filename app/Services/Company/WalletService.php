@@ -4,8 +4,11 @@ namespace App\Services\Company;
 
 use App\Models\Company;
 use App\Models\CompanyWallet;
+use App\Models\PlatformSetting;
+use App\Models\PlatformWallet;
 use App\Models\WalletDepositRequest;
 use App\Models\WalletTransaction;
+use App\Models\WalletWithdrawalRequest;
 use App\Traits\FileUploadTrait;
 use Exception;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -80,6 +83,7 @@ class WalletService
             'status' => $wallet->status,
             'status_reason' => $wallet->status_reason,
             'status_updated_at' => $wallet->status_updated_at,
+            'withdrawal_fee_percentage' => PlatformSetting::getWithdrawalFeePercentage(),
             'created_at' => $wallet->created_at,
             'updated_at' => $wallet->updated_at,
         ];
@@ -449,6 +453,300 @@ class WalletService
             ]);
 
             return $deposit->fresh(['approver']);
+        });
+    }
+
+    // =========================================================================
+    // WITHDRAWAL REQUESTS & PLATFORM FEE PROCESSING
+    // =========================================================================
+
+    /**
+     * Merchant submits a withdrawal request.
+     * Applies the active platform withdrawal fee percentage (default 2%),
+     * debits the requested amount from wallet balance into pending hold,
+     * and creates a pending debit transaction ledger entry.
+     */
+    public function createWithdrawalRequest(
+        CompanyWallet|Company|int|string $walletOrCompany,
+        float $requestedAmount,
+        array $payoutDetails
+    ): array {
+        if ($requestedAmount <= 0) {
+            throw new Exception('Withdrawal amount must be greater than zero.');
+        }
+
+        $resolvedWallet = $this->resolveWallet($walletOrCompany);
+
+        return DB::transaction(function () use ($resolvedWallet, $requestedAmount, $payoutDetails) {
+            $wallet = CompanyWallet::where('id', $resolvedWallet->id)->lockForUpdate()->first();
+            if (!$wallet) {
+                $wallet = $resolvedWallet;
+            }
+
+            if ($wallet->status === 'frozen') {
+                throw new Exception('Your wallet is frozen by the platform. Withdrawals are currently paused.');
+            }
+
+            if ($wallet->status === 'inactive') {
+                throw new Exception('Wallet is inactive. Cannot submit withdrawal requests.');
+            }
+
+            $balanceBefore = (float) $wallet->balance;
+            if ($balanceBefore < $requestedAmount) {
+                throw new Exception('Insufficient wallet balance for this withdrawal.');
+            }
+
+            $feePercentage = PlatformSetting::getWithdrawalFeePercentage();
+            $feeAmount = round($requestedAmount * ($feePercentage / 100), 2);
+            $netAmount = round($requestedAmount - $feeAmount, 2);
+
+            if ($netAmount <= 0) {
+                throw new Exception('Net payout amount must be greater than zero after deducting platform fee.');
+            }
+
+            $withdrawal = WalletWithdrawalRequest::create([
+                'company_id' => $wallet->company_id,
+                'company_wallet_id' => $wallet->id,
+                'requested_amount' => $requestedAmount,
+                'fee_percentage' => $feePercentage,
+                'fee_amount' => $feeAmount,
+                'net_amount' => $netAmount,
+                'payment_method' => $payoutDetails['payment_method'] ?? 'bank_transfer',
+                'bank_name' => $payoutDetails['bank_name'] ?? null,
+                'account_title' => $payoutDetails['account_title'],
+                'account_number' => $payoutDetails['account_number'],
+                'notes' => $payoutDetails['notes'] ?? null,
+                'status' => 'pending',
+            ]);
+
+            $balanceAfter = round($balanceBefore - $requestedAmount, 2);
+            $wallet->update(['balance' => $balanceAfter]);
+
+            $currency = $wallet->currency ?? 'PKR';
+            $transaction = WalletTransaction::create([
+                'company_wallet_id' => $wallet->id,
+                'company_id' => $wallet->company_id,
+                'type' => 'debit',
+                'amount' => $requestedAmount,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $balanceAfter,
+                'source' => 'withdrawal',
+                'reference_id' => $withdrawal->request_number,
+                'description' => "Withdrawal request {$withdrawal->request_number} (Fee {$feePercentage}%: {$currency} {$feeAmount}, Net Payout: {$currency} {$netAmount})",
+                'status' => 'pending',
+                'metadata' => [
+                    'withdrawal_request_id' => $withdrawal->id,
+                    'fee_percentage' => $feePercentage,
+                    'fee_amount' => $feeAmount,
+                    'net_amount' => $netAmount,
+                    'payment_method' => $withdrawal->payment_method,
+                    'account_title' => $withdrawal->account_title,
+                    'account_number' => $withdrawal->account_number,
+                ],
+            ]);
+
+            return [
+                'withdrawal' => $withdrawal->fresh(),
+                'transaction' => $transaction,
+                'wallet' => $this->getBalance($wallet->fresh()),
+            ];
+        });
+    }
+
+    /**
+     * Get paginated withdrawal requests for a company wallet.
+     */
+    public function getWithdrawalRequests(CompanyWallet|Company|int|string $walletOrCompany, array $filters = []): LengthAwarePaginator
+    {
+        $wallet = $this->resolveWallet($walletOrCompany);
+
+        $query = WalletWithdrawalRequest::query()
+            ->where('company_wallet_id', $wallet->id);
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('request_number', 'like', "%{$search}%")
+                  ->orWhere('account_title', 'like', "%{$search}%")
+                  ->orWhere('account_number', 'like', "%{$search}%")
+                  ->orWhere('bank_name', 'like', "%{$search}%");
+            });
+        }
+
+        $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 15;
+
+        return $query->latest('id')->paginate($perPage);
+    }
+
+    /**
+     * Get all merchant withdrawal requests across platform for Super Admin.
+     */
+    public function getAllWithdrawalRequests(array $filters = []): LengthAwarePaginator
+    {
+        $query = WalletWithdrawalRequest::query()
+            ->with(['company:id,name,subdomain,email,whatsapp_number', 'approver:id,name,email']);
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['company_id'])) {
+            $query->where('company_id', $filters['company_id']);
+        }
+
+        if (!empty($filters['search'])) {
+            $search = $filters['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('request_number', 'like', "%{$search}%")
+                  ->orWhere('account_title', 'like', "%{$search}%")
+                  ->orWhere('account_number', 'like', "%{$search}%")
+                  ->orWhere('bank_name', 'like', "%{$search}%")
+                  ->orWhere('notes', 'like', "%{$search}%")
+                  ->orWhereHas('company', function ($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%")
+                         ->orWhere('subdomain', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 15;
+
+        return $query->latest('id')->paginate($perPage);
+    }
+
+    /**
+     * Super Admin approves a withdrawal request, marks ledger TXN completed,
+     * and credits the deducted platform fee into PlatformWallet.
+     */
+    public function approveWithdrawalRequest(
+        WalletWithdrawalRequest|int|string $request,
+        ?int $adminId = null,
+        ?string $adminNotes = null,
+        ?string $payoutReference = null,
+        ?UploadedFile $receiptFile = null
+    ): array {
+        return DB::transaction(function () use ($request, $adminId, $adminNotes, $payoutReference, $receiptFile) {
+            $id = $request instanceof WalletWithdrawalRequest ? $request->id : $request;
+            $withdrawal = WalletWithdrawalRequest::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if ($withdrawal->status !== 'pending') {
+                throw new Exception("Withdrawal request has already been {$withdrawal->status}.");
+            }
+
+            $receiptPath = $withdrawal->payout_receipt;
+            if ($receiptFile) {
+                $receiptPath = $this->uploadFile($receiptFile, 'wallet/payouts');
+            }
+
+            // Complete the pending debit transaction in merchant's wallet ledger
+            WalletTransaction::where('company_wallet_id', $withdrawal->company_wallet_id)
+                ->where('reference_id', $withdrawal->request_number)
+                ->where('source', 'withdrawal')
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'completed',
+                    'description' => "Withdrawal approved ({$withdrawal->request_number})" . ($payoutReference ? " • Ref: {$payoutReference}" : ''),
+                ]);
+
+            // Credit platform withdrawal fee into Platform Master Wallet
+            $feeAmount = (float) $withdrawal->fee_amount;
+            if ($feeAmount > 0) {
+                $platformWallet = PlatformWallet::instance();
+                $company = $withdrawal->company;
+                $platformWallet->credit(
+                    $feeAmount,
+                    $feeAmount,
+                    0.00,
+                    'withdrawal_fee',
+                    "Withdrawal Fee ({$withdrawal->fee_percentage}%) from " . ($company?->name ?? "Company #{$withdrawal->company_id}") . " ({$withdrawal->request_number})",
+                    $company,
+                    $withdrawal->request_number,
+                    [
+                        'withdrawal_request_id' => $withdrawal->id,
+                        'requested_amount' => (float) $withdrawal->requested_amount,
+                        'fee_percentage' => (float) $withdrawal->fee_percentage,
+                        'net_payout_amount' => (float) $withdrawal->net_amount,
+                        'approved_by' => $adminId,
+                    ]
+                );
+            }
+
+            $withdrawal->update([
+                'status' => 'approved',
+                'admin_notes' => $adminNotes,
+                'payout_reference' => $payoutReference,
+                'payout_receipt' => $receiptPath,
+                'approved_by' => $adminId,
+                'approved_at' => now(),
+            ]);
+
+            return [
+                'withdrawal' => $withdrawal->fresh(['company', 'approver']),
+                'wallet' => $this->getBalance($withdrawal->company_id),
+            ];
+        });
+    }
+
+    /**
+     * Super Admin rejects a withdrawal request and refunds the held amount
+     * back into the merchant's company wallet.
+     */
+    public function rejectWithdrawalRequest(
+        WalletWithdrawalRequest|int|string $request,
+        ?int $adminId = null,
+        string $reason = 'Withdrawal request rejected by administration'
+    ): array {
+        return DB::transaction(function () use ($request, $adminId, $reason) {
+            $id = $request instanceof WalletWithdrawalRequest ? $request->id : $request;
+            $withdrawal = WalletWithdrawalRequest::where('id', $id)->lockForUpdate()->firstOrFail();
+
+            if ($withdrawal->status !== 'pending') {
+                throw new Exception("Withdrawal request has already been {$withdrawal->status}.");
+            }
+
+            $company = $withdrawal->company;
+            if (!$company) {
+                throw new Exception('Associated company not found.');
+            }
+
+            // Mark the pending debit transaction as cancelled
+            WalletTransaction::where('company_wallet_id', $withdrawal->company_wallet_id)
+                ->where('reference_id', $withdrawal->request_number)
+                ->where('source', 'withdrawal')
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'cancelled',
+                ]);
+
+            // Refund held amount back into merchant's wallet
+            $refundTransaction = $this->credit(
+                $company,
+                (float) $withdrawal->requested_amount,
+                'withdrawal_refund',
+                "Withdrawal rejected & refunded ({$withdrawal->request_number}): {$reason}",
+                $withdrawal->request_number,
+                [
+                    'withdrawal_request_id' => $withdrawal->id,
+                    'rejected_by' => $adminId,
+                ]
+            );
+
+            $withdrawal->update([
+                'status' => 'rejected',
+                'admin_notes' => $reason,
+                'approved_by' => $adminId,
+                'rejected_at' => now(),
+            ]);
+
+            return [
+                'withdrawal' => $withdrawal->fresh(['company', 'approver']),
+                'refund_transaction' => $refundTransaction,
+                'wallet' => $this->getBalance($company),
+            ];
         });
     }
 }

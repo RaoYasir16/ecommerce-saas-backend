@@ -26,10 +26,29 @@ class OrderController extends Controller
 
         $orders = $this->dashboardService->getOrders(
             $company,
-            $request->only(['search', 'status', 'payment_status', 'per_page'])
+            $request->only(['search', 'status', 'payment_status', 'category_id', 'category', 'per_page'])
         );
 
         return $this->apiResponse(true, 'Orders retrieved successfully.', $orders);
+    }
+
+    /**
+     * Get category-wise and status-wise order summary counts.
+     */
+    public function summary(Request $request): JsonResponse
+    {
+        $company = auth()->user()->company;
+
+        if (!$company) {
+            return $this->apiResponse(false, 'Merchant company not found.', null, 404);
+        }
+
+        $summary = $this->dashboardService->getOrderSummary(
+            $company,
+            $request->only(['search', 'status', 'payment_status', 'category_id'])
+        );
+
+        return $this->apiResponse(true, 'Order summary retrieved successfully.', $summary);
     }
 
     /**

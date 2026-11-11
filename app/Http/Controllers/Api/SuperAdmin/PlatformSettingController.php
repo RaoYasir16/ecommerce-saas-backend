@@ -33,6 +33,7 @@ class PlatformSettingController extends Controller
     {
         $request->validate([
             'referral_commission_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'withdrawal_fee_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_referral_enabled' => ['nullable', 'boolean'],
             'currency' => ['nullable', 'string', 'max:10'],
             'store_footer_copyright_text' => ['nullable', 'string', 'max:255'],
@@ -43,6 +44,9 @@ class PlatformSettingController extends Controller
         $updateData = [];
         if ($request->has('referral_commission_percentage')) {
             $updateData['referral_commission_percentage'] = $request->input('referral_commission_percentage');
+        }
+        if ($request->has('withdrawal_fee_percentage')) {
+            $updateData['withdrawal_fee_percentage'] = $request->input('withdrawal_fee_percentage');
         }
         if ($request->has('is_referral_enabled')) {
             $updateData['is_referral_enabled'] = $request->boolean('is_referral_enabled');

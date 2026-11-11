@@ -13,6 +13,7 @@ class PlatformSetting extends Model
 
     protected $fillable = [
         'referral_commission_percentage',
+        'withdrawal_fee_percentage',
         'is_referral_enabled',
         'currency',
         'store_footer_copyright_text',
@@ -21,6 +22,7 @@ class PlatformSetting extends Model
 
     protected $casts = [
         'referral_commission_percentage' => 'float',
+        'withdrawal_fee_percentage' => 'float',
         'is_referral_enabled' => 'boolean',
         'additional_settings' => 'array',
     ];
@@ -34,6 +36,7 @@ class PlatformSetting extends Model
             ['id' => 1],
             [
                 'referral_commission_percentage' => 5.00,
+                'withdrawal_fee_percentage' => 2.00,
                 'is_referral_enabled' => true,
                 'currency' => 'PKR',
                 'store_footer_copyright_text' => '© 2026 storefront. All rights reserved.',
@@ -53,6 +56,19 @@ class PlatformSetting extends Model
         }
 
         return $setting ? (float) $setting->referral_commission_percentage : 5.00;
+    }
+
+    /**
+     * Get the active withdrawal platform fee percentage set by Super Admin (default 2%).
+     */
+    public static function getWithdrawalFeePercentage(): float
+    {
+        $setting = static::first();
+        if ($setting && $setting->withdrawal_fee_percentage !== null) {
+            return (float) $setting->withdrawal_fee_percentage;
+        }
+
+        return 2.00;
     }
 
     /**

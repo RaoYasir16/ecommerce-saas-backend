@@ -42,6 +42,11 @@ class CompanyWallet extends Model
         return $this->hasMany(WalletDepositRequest::class, 'company_wallet_id');
     }
 
+    public function withdrawalRequests(): HasMany
+    {
+        return $this->hasMany(WalletWithdrawalRequest::class, 'company_wallet_id');
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';
