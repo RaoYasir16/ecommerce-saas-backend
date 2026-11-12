@@ -3,6 +3,7 @@
 namespace App\Services\SuperAdmin;
 
 use App\Models\Order;
+use App\Models\PlatformSetting;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class OrderService
@@ -14,9 +15,9 @@ class OrderService
     {
         $query = Order::query()
             ->with([
-                'company:id,name,subdomain',
+                'company:id,name,subdomain,currency',
                 'user:id,name,email',
-                'items.product:id,name,slug,price',
+                'items.product:id,title,slug,regular_price,sale_price',
             ]);
 
         if (!empty($filters['search'])) {
@@ -25,7 +26,11 @@ class OrderService
                 $q->where('order_number', 'like', "%{$search}%")
                   ->orWhere('customer_name', 'like', "%{$search}%")
                   ->orWhere('customer_email', 'like', "%{$search}%")
-                  ->orWhere('customer_phone', 'like', "%{$search}%");
+                  ->orWhere('customer_phone', 'like', "%{$search}%")
+                  ->orWhereHas('company', function ($cq) use ($search) {
+                      $cq->where('name', 'like', "%{$search}%")
+                         ->orWhere('subdomain', 'like', "%{$search}%");
+                  });
             });
         }
 
@@ -57,9 +62,12 @@ class OrderService
             $query->whereDate('created_at', '<=', $filters['end_date']);
         }
 
-        $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 15;
+        $perPage = !empty($filters['per_page']) ? (int) $filters['per_page'] : 10;
+        $defaultCurrency = PlatformSetting::instance()->currency ?? 'PKR';
 
-        return $query->latest()->paginate($perPage);
+        return $query->latest('id')->paginate($perPage)->through(
+            fn (Order $order) => $this->appendCompanyMetadata($order, $defaultCurrency)
+        );
     }
 
     /**
@@ -67,19 +75,31 @@ class OrderService
      */
     public function getOrderDetails(Order|int|string $order): Order
     {
+        $defaultCurrency = PlatformSetting::instance()->currency ?? 'PKR';
+
         if ($order instanceof Order) {
             $order->loadMissing([
                 'company',
                 'user',
                 'items.product',
             ]);
-            return $order;
+            return $this->appendCompanyMetadata($order, $defaultCurrency);
         }
 
-        return Order::with([
+        $resolved = Order::with([
             'company',
             'user',
             'items.product',
         ])->findOrFail($order);
+
+        return $this->appendCompanyMetadata($resolved, $defaultCurrency);
+    }
+
+    private function appendCompanyMetadata(Order $order, string $defaultCurrency): Order
+    {
+        $order->setAttribute('company_name', $order->company?->name);
+        $order->setAttribute('currency', $order->company?->currency ?? $defaultCurrency);
+
+        return $order;
     }
 }
