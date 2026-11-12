@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\WholesaleCatalogController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,6 +23,13 @@ Route::get('/storage/{path}', function (string $path) {
     }
     return response()->file($disk->path($path));
 })->where('path', '.*');
+
+// Public B2B Wholesale Catalog (displayed on platform landing / wholesale hub)
+Route::prefix('wholesale')->group(function () {
+    Route::get('/categories', [WholesaleCatalogController::class, 'categories']);
+    Route::get('/products', [WholesaleCatalogController::class, 'products']);
+    Route::get('/products/{id}', [WholesaleCatalogController::class, 'showProduct']);
+});
 
 require __DIR__ . '/api/company.php';
 require __DIR__ . '/api/customer.php';

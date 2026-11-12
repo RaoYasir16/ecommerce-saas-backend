@@ -121,6 +121,7 @@ class AuthService
                 'domain' => $fullDomain,
                 'domain_status' => 'pending',
                 'whatsapp_number' => $data['whatsapp_number'] ?? null,
+                'currency' => Company::normalizeCurrency($data['currency'] ?? 'PKR'),
                 'logo' => $logoPath,
                 'trial_ends_at' => now()->addMonth(),
                 'status' => 'trial',
@@ -386,6 +387,7 @@ class AuthService
             'domain_status' => $company->domain_status ?? 'pending',
             'store_url' => "https://{$domain}",
             'whatsapp_number' => $company->whatsapp_number,
+            'currency' => $company->currency ?: 'PKR',
             'logo_url' => $company->logo
                 ? asset('storage/' . $company->logo)
                 : null,

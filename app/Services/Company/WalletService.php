@@ -37,11 +37,13 @@ class WalletService
             return $wallet;
         }
 
+        $companyCurrency = Company::where('id', $walletOrCompany)->value('currency') ?: 'PKR';
+
         return CompanyWallet::firstOrCreate(
             ['company_id' => $walletOrCompany],
             [
                 'balance' => 0.00,
-                'currency' => 'PKR',
+                'currency' => $companyCurrency,
                 'status' => 'active',
                 'status_reason' => null,
                 'status_updated_at' => now(),
@@ -55,12 +57,15 @@ class WalletService
     public function getOrCreateWallet(Company|int|string $company): CompanyWallet
     {
         $companyId = $company instanceof Company ? $company->id : $company;
+        $companyCurrency = $company instanceof Company
+            ? ($company->currency ?: 'PKR')
+            : (Company::where('id', $companyId)->value('currency') ?: 'PKR');
 
         return CompanyWallet::firstOrCreate(
             ['company_id' => $companyId],
             [
                 'balance' => 0.00,
-                'currency' => 'PKR',
+                'currency' => $companyCurrency,
                 'status' => 'active',
                 'status_reason' => null,
                 'status_updated_at' => now(),
@@ -74,12 +79,14 @@ class WalletService
     public function getBalance(CompanyWallet|Company|int|string $walletOrCompany): array
     {
         $wallet = $this->resolveWallet($walletOrCompany);
+        $wallet->loadMissing('company:id,currency');
+        $effectiveCurrency = $wallet->company?->currency ?: $wallet->currency ?: 'PKR';
 
         return [
             'id' => $wallet->id,
             'company_id' => $wallet->company_id,
             'balance' => (float) $wallet->balance,
-            'currency' => $wallet->currency,
+            'currency' => $effectiveCurrency,
             'status' => $wallet->status,
             'status_reason' => $wallet->status_reason,
             'status_updated_at' => $wallet->status_updated_at,

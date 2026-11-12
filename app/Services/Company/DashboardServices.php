@@ -105,7 +105,7 @@ class DashboardServices
 
         // 7. Recent Subdomain Orders Preview (Latest 6)
         $recentOrders = Order::where('company_id', $companyId)
-            ->with(['items.product.category'])
+            ->with(['company:id,currency', 'items.product.category'])
             ->latest('created_at')
             ->limit(6)
             ->get()
@@ -216,7 +216,7 @@ class DashboardServices
     public function getOrders(Company $company, array $filters = []): Collection
     {
         $query = Order::where('company_id', $company->id)
-            ->with(['items.product.category']);
+            ->with(['company:id,currency', 'items.product.category']);
 
         $this->applyOrderFilters($query, $filters);
 
@@ -354,7 +354,7 @@ class DashboardServices
                 $q->where('id', $id)
                     ->orWhere('order_number', $id);
             })
-            ->with(['items.product.category'])
+            ->with(['company:id,currency', 'items.product.category'])
             ->first();
 
         return $order ? $this->formatOrder($order) : null;
@@ -390,7 +390,7 @@ class DashboardServices
 
         $order->save();
 
-        return $this->formatOrder($order->fresh(['items.product.category']));
+        return $this->formatOrder($order->fresh(['company:id,currency', 'items.product.category']));
     }
 
     /**
@@ -468,6 +468,7 @@ class DashboardServices
             'tax' => (float) $order->tax,
             'discount' => (float) $order->discount,
             'total' => (float) $order->total_amount,
+            'currency' => $order->company?->currency ?: 'PKR',
             'paymentMethod' => $paymentMethod,
             'paymentStatus' => $paymentStatus,
             'fulfillmentStatus' => $fulfillmentStatus,

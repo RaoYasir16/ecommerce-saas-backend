@@ -3,6 +3,7 @@
 namespace App\Services\Company;
 
 use App\Models\Company;
+use App\Models\CompanyWallet;
 use App\Models\Role;
 use App\Models\StoreSetting;
 use App\Models\User;
@@ -64,6 +65,10 @@ class ProfileServices
                 );
             }
 
+            $newCurrency = array_key_exists('currency', $data) && trim((string) $data['currency']) !== ''
+                ? Company::normalizeCurrency($data['currency'])
+                : Company::normalizeCurrency($company->currency ?? 'PKR');
+
             /*
              * Update Company
              */
@@ -74,8 +79,14 @@ class ProfileServices
                     ?? $company->whatsapp_number,
                 'address' => $data['address']
                     ?? $company->address,
+                'currency' => $newCurrency,
                 'logo' => $data['logo']
                     ?? $company->logo,
+            ]);
+
+            // Sync company wallet currency immediately
+            CompanyWallet::where('company_id', $company->id)->update([
+                'currency' => $newCurrency,
             ]);
 
             $user->load('company');
@@ -118,6 +129,7 @@ class ProfileServices
             'whatsapp_number' => $company->whatsapp_number,
             'email' => $company->email,
             'address' => $company->address,
+            'currency' => $company->currency ?: 'PKR',
             'trial_ends_at' => $company->trial_ends_at,
             'status' => $company->status,
             'created_at' => $company->created_at,

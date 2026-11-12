@@ -2,6 +2,7 @@
 
 namespace App\Services\Company;
 
+use App\Models\Company;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Traits\FileUploadTrait;
@@ -106,8 +107,15 @@ class ProductServices
         }
 
         $perPage = min(max((int) ($filters['per_page'] ?? 15), 1), 100);
+        $currency = Company::normalizeCurrency($company->currency ?? null);
+        $products = $query->latest()->paginate($perPage);
 
-        return $query->latest()->paginate($perPage);
+        $products->getCollection()->transform(function (Product $product) use ($currency) {
+            $product->setAttribute('currency', $currency);
+            return $product;
+        });
+
+        return $products;
     }
 
     public function getProductById($company, int $id): Product
@@ -119,6 +127,8 @@ class ProductServices
             if(!$product){
                 throw new HttpException(404,'Product not found');
             }
+
+            $product->setAttribute('currency', Company::normalizeCurrency($company->currency ?? null));
 
             return $product;
     }

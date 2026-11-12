@@ -31,6 +31,8 @@ class CompanyProfileUpdateRequest extends FormRequest
 
             'address' => ['nullable', 'string', 'max:500',],
 
+            'currency' => ['nullable', 'string', 'max:10',],
+
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,svg', 'max:2048',],
         ];
     }
@@ -46,6 +48,8 @@ class CompanyProfileUpdateRequest extends FormRequest
             'whatsapp_number.max' => 'WhatsApp number cannot exceed 20 characters.',
 
             'address.max' => 'Address cannot exceed 500 characters.',
+
+            'currency.max' => 'Currency cannot exceed 10 characters.',
 
             'logo.image' => 'The logo must be a valid image.',
             'logo.mimes' => 'Logo must be jpeg, png, jpg, webp, or svg.',

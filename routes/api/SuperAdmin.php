@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\SuperAdmin\SubscriptionPlanController;
 use App\Http\Controllers\Api\SuperAdmin\PlatformSettingController;
 use App\Http\Controllers\Api\SuperAdmin\PlatformWalletController;
 use App\Http\Controllers\Api\SuperAdmin\ActivityLogController;
+use App\Http\Controllers\Api\SuperAdmin\WholesaleController;
 
 Route::prefix('super-admin')->group(function () {
 
@@ -84,6 +85,33 @@ Route::prefix('super-admin')->group(function () {
         Route::prefix('activities')->group(function () {
             Route::get('/', [ActivityLogController::class, 'index']);
             Route::get('/{id}', [ActivityLogController::class, 'show']);
+        });
+
+        // B2B Wholesale Hub Management (Categories, Products, Orders)
+        Route::prefix('wholesale')->group(function () {
+            Route::prefix('categories')->group(function () {
+                Route::get('/', [WholesaleController::class, 'indexCategories']);
+                Route::post('/', [WholesaleController::class, 'storeCategory']);
+                Route::post('/{id}', [WholesaleController::class, 'updateCategory']);
+                Route::put('/{id}', [WholesaleController::class, 'updateCategory']);
+                Route::delete('/{id}', [WholesaleController::class, 'destroyCategory']);
+            });
+
+            Route::prefix('products')->group(function () {
+                Route::get('/', [WholesaleController::class, 'indexProducts']);
+                Route::post('/', [WholesaleController::class, 'storeProduct']);
+                Route::get('/{id}', [WholesaleController::class, 'showProduct']);
+                Route::post('/{id}', [WholesaleController::class, 'updateProduct']);
+                Route::put('/{id}', [WholesaleController::class, 'updateProduct']);
+                Route::delete('/{id}', [WholesaleController::class, 'destroyProduct']);
+            });
+
+            Route::prefix('orders')->group(function () {
+                Route::get('/', [WholesaleController::class, 'indexOrders']);
+                Route::get('/{id}', [WholesaleController::class, 'showOrder']);
+                Route::post('/{id}/status', [WholesaleController::class, 'updateOrderStatus']);
+                Route::put('/{id}/status', [WholesaleController::class, 'updateOrderStatus']);
+            });
         });
     });
 });

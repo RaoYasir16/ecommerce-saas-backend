@@ -3,6 +3,7 @@
 namespace App\Services\StoreCustomer;
 
 use App\Models\CartItem;
+use App\Models\Company;
 use App\Models\Favorite;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -30,10 +31,45 @@ class StoreService
                 'whatsapp_number' => $company->whatsapp_number,
                 'email' => $company->email,
                 'address' => $company->address,
+                'currency' => $this->resolveCompanyCurrency($company),
                 'status' => $company->status,
             ],
             'settings' => $company->storeSetting,
         ];
+    }
+
+    private function resolveCompanyCurrency($company): string
+    {
+        return Company::normalizeCurrency($company->currency ?? null);
+    }
+
+    private function attachProductCurrency(?Product $product, string $currency): ?Product
+    {
+        if ($product) {
+            $product->setAttribute('currency', $currency);
+        }
+
+        return $product;
+    }
+
+    private function attachOrderCurrency(?Order $order, string $currency): ?Order
+    {
+        if (!$order) {
+            return null;
+        }
+
+        $order->setAttribute('currency', $currency);
+
+        if ($order->relationLoaded('items')) {
+            $order->items->each(function ($item) use ($currency) {
+                $item->setAttribute('currency', $currency);
+                if ($item->relationLoaded('product')) {
+                    $this->attachProductCurrency($item->product, $currency);
+                }
+            });
+        }
+
+        return $order;
     }
 
     public function getProducts($company, array $filters = [])
@@ -58,17 +94,25 @@ class StoreService
 
         $perPage = min(max((int) ($filters['per_page'] ?? 12), 1), 100);
 
-        return $query->latest()->paginate($perPage);
+        $currency = $this->resolveCompanyCurrency($company);
+        $products = $query->latest()->paginate($perPage);
+        $products->getCollection()->transform(
+            fn (Product $product) => $this->attachProductCurrency($product, $currency)
+        );
+
+        return $products;
     }
 
     public function getProduct($company, string $id): Product
     {
-        return Product::query()
+        $product = Product::query()
             ->where('company_id', $company->id)
             ->where('id', $id)
             ->where('is_available', true)
             ->with(['category', 'images', 'variants', 'reviews.user:id,name'])
             ->firstOrFail();
+
+        return $this->attachProductCurrency($product, $this->resolveCompanyCurrency($company));
     }
 
     public function getCategories($company)
@@ -121,13 +165,19 @@ class StoreService
             'product_id' => $product->id,
         ]);
 
+        $currency = $this->resolveCompanyCurrency($company);
+        $favorite->load([
+            'product.images',
+            'product.category',
+            'product.variants',
+        ]);
+        $favorite->setAttribute('is_favorite', true);
+        $favorite->setAttribute('currency', $currency);
+        $this->attachProductCurrency($favorite->product, $currency);
+
         return [
             'message' => 'Product added to favorites successfully.',
-            'data' => $favorite->load([
-                'product.images',
-                'product.category',
-                'product.variants',
-            ])->setAttribute('is_favorite', true),
+            'data' => $favorite,
         ];
     }
 
@@ -140,8 +190,19 @@ class StoreService
             ->latest();
 
         $perPage = min(max((int) ($filters['per_page'] ?? 15), 1), 100);
+        $currency = $this->resolveCompanyCurrency($company);
+        $favorites = $query->paginate($perPage);
 
-        return $query->paginate($perPage);
+        $favorites->getCollection()->transform(function ($favorite) use ($currency) {
+            $favorite->setAttribute('currency', $currency);
+            if ($favorite->relationLoaded('product')) {
+                $this->attachProductCurrency($favorite->product, $currency);
+            }
+
+            return $favorite;
+        });
+
+        return $favorites;
     }
 
     // ==========================================
@@ -222,11 +283,17 @@ class StoreService
             ]);
         }
 
-        return $cartItem->fresh(['product.images', 'product.category', 'variant']);
+        $currency = $this->resolveCompanyCurrency($company);
+        $freshItem = $cartItem->fresh(['product.images', 'product.category', 'variant']);
+        $freshItem->setAttribute('currency', $currency);
+        $this->attachProductCurrency($freshItem->product, $currency);
+
+        return $freshItem;
     }
 
     public function getCart($company, $user): array
     {
+        $currency = $this->resolveCompanyCurrency($company);
         $items = CartItem::query()
             ->where('company_id', $company->id)
             ->where('user_id', $user->id)
@@ -238,6 +305,8 @@ class StoreService
         $totalQuantity = 0;
 
         foreach ($items as $item) {
+            $item->setAttribute('currency', $currency);
+            $this->attachProductCurrency($item->product, $currency);
             $subtotal += $item->subtotal;
             $totalQuantity += $item->quantity;
         }
@@ -247,6 +316,7 @@ class StoreService
             'total_items' => $items->count(),
             'total_quantity' => $totalQuantity,
             'subtotal' => round($subtotal, 2),
+            'currency' => $currency,
         ];
     }
 
@@ -314,7 +384,12 @@ class StoreService
 
         $cartItem->update(['quantity' => $quantity]);
 
-        return $cartItem->fresh(['product.images', 'product.category', 'variant']);
+        $currency = $this->resolveCompanyCurrency($company);
+        $freshItem = $cartItem->fresh(['product.images', 'product.category', 'variant']);
+        $freshItem->setAttribute('currency', $currency);
+        $this->attachProductCurrency($freshItem->product, $currency);
+
+        return $freshItem;
     }
 
     public function clearCart($company, $user): bool
@@ -510,7 +585,10 @@ class StoreService
                 CartItem::whereIn('id', $cartItemsToDelete)->delete();
             }
 
-            return $order->load(['items.product.images', 'items.variant']);
+            return $this->attachOrderCurrency(
+                $order->load(['items.product.images', 'items.variant']),
+                $this->resolveCompanyCurrency($company)
+            );
         });
     }
 
@@ -527,18 +605,26 @@ class StoreService
         }
 
         $perPage = min(max((int) ($filters['per_page'] ?? 10), 1), 100);
+        $currency = $this->resolveCompanyCurrency($company);
+        $orders = $query->paginate($perPage);
 
-        return $query->paginate($perPage);
+        $orders->getCollection()->transform(
+            fn (Order $order) => $this->attachOrderCurrency($order, $currency)
+        );
+
+        return $orders;
     }
 
     public function getOrder($company, $user, $orderId): Order
     {
-        return Order::query()
+        $order = Order::query()
             ->where('company_id', $company->id)
             ->where('user_id', $user->id)
             ->where('id', $orderId)
             ->with(['items.product.images', 'items.variant'])
             ->firstOrFail();
+
+        return $this->attachOrderCurrency($order, $this->resolveCompanyCurrency($company));
     }
 
     public function cancelOrder($company, $user, array $data, $orderId = null): Order
@@ -591,7 +677,10 @@ class StoreService
                 'cancelled_at' => now(),
             ]);
 
-            return $order->fresh(['items.product.images', 'items.variant']);
+            return $this->attachOrderCurrency(
+                $order->fresh(['items.product.images', 'items.variant']),
+                $this->resolveCompanyCurrency($company)
+            );
         });
     }
 

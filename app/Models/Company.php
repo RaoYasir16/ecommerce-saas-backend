@@ -23,6 +23,7 @@ class Company extends Model
                 'domain_status',
                 'whatsapp_number',
                 'email',
+                'currency',
                 'status',
             ])
             ->logOnlyDirty()
@@ -40,11 +41,45 @@ class Company extends Model
         'whatsapp_number',
         'email',
         'address',
+        'currency',
         'trial_ends_at',
         'status',
         'referral_code',
         'referred_by',
     ];
+
+    /**
+     * Normalize symbol or currency code input to a clean 3-letter code when possible.
+     */
+    public static function normalizeCurrency(?string $value): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return 'PKR';
+        }
+
+        $map = [
+            '$' => 'USD',
+            'usd' => 'USD',
+            '₨' => 'PKR',
+            'rs' => 'PKR',
+            'rs.' => 'PKR',
+            'pkr' => 'PKR',
+            '€' => 'EUR',
+            'eur' => 'EUR',
+            '£' => 'GBP',
+            'gbp' => 'GBP',
+            'aed' => 'AED',
+            'sar' => 'SAR',
+        ];
+
+        $lower = strtolower($raw);
+        if (isset($map[$lower])) {
+            return $map[$lower];
+        }
+
+        return strtoupper(substr($raw, 0, 10));
+    }
 
     protected $casts = [
         'trial_ends_at' => 'datetime',
