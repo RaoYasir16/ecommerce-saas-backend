@@ -21,6 +21,11 @@ Route::prefix('company')->group(function () {
     Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
     Route::post('/login', [AuthController::class, 'login']);
 
+    // Forgot Password Flow
+    Route::post('/forgot-password/send-otp', [AuthController::class, 'forgotPasswordSendOtp']);
+    Route::post('/forgot-password/verify-otp', [AuthController::class, 'forgotPasswordVerifyOtp']);
+    Route::post('/forgot-password/reset', [AuthController::class, 'forgotPasswordReset']);
+
 
     //Authenticated Company Routes
     Route::middleware('auth:user', EnsureCompanyAdmin::class)->group(function () {
@@ -46,6 +51,10 @@ Route::prefix('company')->group(function () {
 
             Route::get('/store-setting',[ProfileController::class,'getStoreSetting']);
             Route::post('/store-setting/update',[ProfileController::class,'updateStoreSetting']);
+
+            // Password reset with OTP
+            Route::post('/password/send-otp', [ProfileController::class, 'sendPasswordResetOtp']);
+            Route::post('/password/reset', [ProfileController::class, 'resetPassword']);
         });
 
         // products and category routes

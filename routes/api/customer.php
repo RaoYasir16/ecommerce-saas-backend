@@ -15,6 +15,11 @@ Route::middleware(ResolveStore::class)->group(function () {
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/login', [AuthController::class, 'login']);
 
+        // Customer Forgot Password
+        Route::post('/forgot-password/send-otp', [AuthController::class, 'forgotPasswordSendOtp']);
+        Route::post('/forgot-password/verify-otp', [AuthController::class, 'forgotPasswordVerifyOtp']);
+        Route::post('/forgot-password/reset', [AuthController::class, 'forgotPasswordReset']);
+
         // Public Catalog Routes
         Route::get('/show-store', [StoreController::class, 'show']);
         Route::get('/categories', [StoreController::class, 'categories']);
@@ -23,6 +28,10 @@ Route::middleware(ResolveStore::class)->group(function () {
         Route::get('/products/{id}/reviews', [CustomerStoreController::class, 'getProductReviews']);
 
         Route::middleware('auth:user')->group(function () {
+            // Customer Authenticated Password Reset with OTP
+            Route::post('/password/send-otp', [AuthController::class, 'sendPasswordResetOtp']);
+            Route::post('/password/reset', [AuthController::class, 'resetPassword']);
+
             // Favorite / Wishlist Routes
             Route::prefix('favorite')->group(function () {
                 Route::post('/add-remove', [CustomerStoreController::class, 'addFavorite']);

@@ -94,4 +94,40 @@ class ProfileController extends Controller
             $storeSetting
         );
     }
+
+    /**
+     * Send OTP for authenticated password reset.
+     */
+    public function sendPasswordResetOtp(Request $request)
+    {
+        $result = $this->profileService->sendPasswordResetOtp($request->user());
+
+        return $this->apiResponse(
+            true,
+            "Verification code sent to {$result['masked_email']}.",
+            $result,
+            200
+        );
+    }
+
+    /**
+     * Reset password with OTP for authenticated user.
+     */
+    public function resetPassword(Request $request)
+    {
+        $validated = $request->validate([
+            'otp' => ['required', 'string', 'size:6'],
+            'current_password' => ['nullable', 'string'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $this->profileService->resetPassword($request->user(), $validated);
+
+        return $this->apiResponse(
+            true,
+            'Password has been updated successfully.',
+            null,
+            200
+        );
+    }
 }

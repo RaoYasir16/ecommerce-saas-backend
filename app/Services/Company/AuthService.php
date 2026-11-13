@@ -287,7 +287,7 @@ class AuthService
             throw new HttpException(404, 'User not found.');
         }
 
-        $expiry = 5;
+        $expiry = 10;
         $otpCode = (string) random_int(100000, 999999);
 
         DB::transaction(function () use ($user, $type, $otpCode, $expiry) {
@@ -304,14 +304,168 @@ class AuthService
             );
         });
 
+        $title = match ($type) {
+            'forget_password' => 'Your Merchant Password Reset Code',
+            'reset_password', 'resetpassword' => 'Your Password Change Code',
+            default => 'Your Merchant Verification Code',
+        };
+
+        $message = match ($type) {
+            'forget_password' => 'Use the code below to reset your store password. Valid for 10 minutes.',
+            'reset_password', 'resetpassword' => 'Use the code below to confirm updating your account password. Valid for 10 minutes.',
+            default => 'Your new verification code is given below. Use it to activate your store.',
+        };
+
         $this->mailService->send(
             to: $user->email,
-            title: 'Your Merchant Verification Code',
-            message: 'Your new verification code is given below. Use it to activate your store.',
+            title: $title,
+            message: $message,
             name: $user->name,
             otp: $otpCode,
             expiry: $expiry,
         );
+    }
+
+    /**
+     * Forgot Password - Send OTP to email.
+     */
+    public function forgotPasswordSendOtp(string $email): array
+    {
+        $user = User::where('email', Str::lower($email))->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['No merchant account found with this email address.'],
+            ]);
+        }
+
+        if (!$user->role()->where('name', 'Admin')->exists()) {
+            throw ValidationException::withMessages([
+                'email' => ['Access denied. This email is not associated with a merchant store account.'],
+            ]);
+        }
+
+        $otp = (string) random_int(100000, 999999);
+        $expiry = 10;
+
+        DB::transaction(function () use ($user, $otp, $expiry) {
+            Otp::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'type' => 'forget_password',
+                ],
+                [
+                    'otp_hash' => $otp,
+                    'expires_at' => now()->addMinutes($expiry),
+                    'attempts' => 0,
+                ]
+            );
+        });
+
+        $this->mailService->send(
+            to: $user->email,
+            title: 'Reset Your Merchant Password',
+            message: 'You requested to reset your merchant account password. Use the 6-digit OTP code below to set a new password. If you did not make this request, you can safely ignore this email.',
+            name: $user->name,
+            otp: $otp,
+            expiry: $expiry,
+        );
+
+        return [
+            'email' => $user->email,
+            'message' => "A password reset code has been sent to {$user->email}.",
+        ];
+    }
+
+    /**
+     * Forgot Password - Verify OTP.
+     */
+    public function forgotPasswordVerifyOtp(string $email, string $otp): bool
+    {
+        $user = User::where('email', Str::lower($email))->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['Merchant account not found.'],
+            ]);
+        }
+
+        $otpRecord = Otp::where('user_id', $user->id)
+            ->where('type', 'forget_password')
+            ->first();
+
+        if (!$otpRecord || $otpRecord->expires_at->isPast()) {
+            throw ValidationException::withMessages([
+                'otp' => ['Verification code has expired. Please request a new one.'],
+            ]);
+        }
+
+        if ($otpRecord->attempts >= 5) {
+            throw ValidationException::withMessages([
+                'otp' => ['Too many incorrect attempts. Please request a new code.'],
+            ]);
+        }
+
+        if ((string) $otp !== (string) $otpRecord->otp_hash) {
+            $otpRecord->increment('attempts');
+            throw ValidationException::withMessages([
+                'otp' => ['Invalid verification code.'],
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Forgot Password - Reset password with OTP.
+     */
+    public function forgotPasswordReset(array $data): array
+    {
+        $user = User::where('email', Str::lower($data['email']))->first();
+
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['Merchant account not found.'],
+            ]);
+        }
+
+        $otpRecord = Otp::where('user_id', $user->id)
+            ->where('type', 'forget_password')
+            ->first();
+
+        if (!$otpRecord || $otpRecord->expires_at->isPast()) {
+            throw ValidationException::withMessages([
+                'otp' => ['Verification code has expired. Please request a new one.'],
+            ]);
+        }
+
+        if ($otpRecord->attempts >= 5) {
+            throw ValidationException::withMessages([
+                'otp' => ['Too many incorrect attempts. Please request a new code.'],
+            ]);
+        }
+
+        if ((string) $data['otp'] !== (string) $otpRecord->otp_hash) {
+            $otpRecord->increment('attempts');
+            throw ValidationException::withMessages([
+                'otp' => ['Invalid verification code.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($user, $data, $otpRecord) {
+            $user->forceFill([
+                'password' => Hash::make($data['password']),
+            ])->save();
+
+            $otpRecord->delete();
+
+            // Revoke active merchant tokens for security
+            $user->tokens()->delete();
+        });
+
+        return [
+            'email' => $user->email,
+        ];
     }
 
     /**

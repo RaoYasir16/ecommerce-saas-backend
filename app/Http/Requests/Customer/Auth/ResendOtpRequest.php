@@ -15,7 +15,7 @@ class ResendOtpRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email'],
-            'type' => ['required','string','in:register,forget_password,resetpassword',],
+            'type' => ['required','string','in:register,forget_password,resetpassword,reset_password',],
         ];
     }
 

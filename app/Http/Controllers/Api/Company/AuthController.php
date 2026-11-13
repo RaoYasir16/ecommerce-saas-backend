@@ -126,4 +126,64 @@ class AuthController extends Controller
             200
         );
     }
+
+    /**
+     * Forgot password - Send OTP to email.
+     */
+    public function forgotPasswordSendOtp(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'string', 'email'],
+        ]);
+
+        $result = $this->authService->forgotPasswordSendOtp($request->email);
+
+        return $this->apiResponse(
+            true,
+            'Password reset verification code sent to your email.',
+            $result,
+            200
+        );
+    }
+
+    /**
+     * Forgot password - Verify OTP.
+     */
+    public function forgotPasswordVerifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'otp'   => ['required', 'string', 'size:6'],
+        ]);
+
+        $this->authService->forgotPasswordVerifyOtp($request->email, $request->otp);
+
+        return $this->apiResponse(
+            true,
+            'Verification code is valid.',
+            null,
+            200
+        );
+    }
+
+    /**
+     * Forgot password - Reset password.
+     */
+    public function forgotPasswordReset(Request $request)
+    {
+        $validated = $request->validate([
+            'email'                 => ['required', 'string', 'email'],
+            'otp'                   => ['required', 'string', 'size:6'],
+            'password'              => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $result = $this->authService->forgotPasswordReset($validated);
+
+        return $this->apiResponse(
+            true,
+            'Your password has been reset successfully. Please login with your new password.',
+            $result,
+            200
+        );
+    }
 }

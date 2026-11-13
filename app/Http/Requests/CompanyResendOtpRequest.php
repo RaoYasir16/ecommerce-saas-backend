@@ -15,7 +15,7 @@ class CompanyResendOtpRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email'],
-            'type'  => ['nullable', 'string', 'in:register,forget_password,resetpassword'],
+            'type'  => ['nullable', 'string', 'in:register,forget_password,resetpassword,reset_password'],
         ];
     }
 

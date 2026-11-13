@@ -15,13 +15,18 @@ return new class extends Migration
             $table->id();
             $table->string('name'); // Store Name (e.g., Noor Mega Store)
             $table->string('subdomain')->unique(); // noormegastore
+            $table->string('domain')->nullable()->unique();
+            $table->enum('domain_status', ['pending', 'active', 'failed'])->default('pending');
             $table->string('logo')->nullable();
             $table->string('whatsapp_number'); // +923001234567
             $table->string('email')->nullable();
             $table->text('address')->nullable();
+            $table->string('currency', 10)->default('PKR');
             // Trial Lifecycle (1 Month Free)
             $table->timestamp('trial_ends_at')->nullable();
             $table->enum('status', ['trial', 'active', 'suspended', 'expired'])->default('trial');
+            $table->string('referral_code', 30)->nullable()->unique();
+            $table->foreignId('referred_by')->nullable()->constrained('companies')->nullOnDelete();
 
             $table->timestamps();
         });

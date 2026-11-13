@@ -4,18 +4,25 @@ namespace App\Services\Company;
 
 use App\Models\Company;
 use App\Models\CompanyWallet;
+use App\Models\Otp;
 use App\Models\Role;
 use App\Models\StoreSetting;
 use App\Models\User;
+use App\Services\Mail\MailService;
 use App\Traits\FileUploadTrait;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ProfileServices
 {
     use FileUploadTrait;
+
+    public function __construct(
+        protected MailService $mailService
+    ) {}
 
     /**
      * Get authenticated profile.
@@ -302,5 +309,99 @@ class ProfileServices
 
             return $fresh;
         });
+    }
+
+    /**
+     * Send OTP for authenticated merchant password reset.
+     */
+    public function sendPasswordResetOtp(User $user): array
+    {
+        $otp = (string) random_int(100000, 999999);
+        $expiry = 10;
+
+        DB::transaction(function () use ($user, $otp, $expiry) {
+            Otp::updateOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'type' => 'reset_password',
+                ],
+                [
+                    'otp_hash' => $otp,
+                    'expires_at' => now()->addMinutes($expiry),
+                    'attempts' => 0,
+                ]
+            );
+        });
+
+        $this->mailService->send(
+            to: $user->email,
+            title: 'Confirm Merchant Password Reset',
+            message: 'You have initiated a password change from your merchant dashboard settings. Enter the 6-digit OTP code below to confirm your new password.',
+            name: $user->name,
+            otp: $otp,
+            expiry: $expiry,
+        );
+
+        $parts = explode('@', $user->email);
+        $namePart = $parts[0] ?? '';
+        $domainPart = $parts[1] ?? '';
+        $maskedName = strlen($namePart) > 2 
+            ? substr($namePart, 0, 1) . str_repeat('*', max(1, strlen($namePart) - 2)) . substr($namePart, -1) 
+            : $namePart . '*';
+        $maskedEmail = "{$maskedName}@{$domainPart}";
+
+        return [
+            'email' => $user->email,
+            'masked_email' => $maskedEmail,
+        ];
+    }
+
+    /**
+     * Reset password for authenticated user with OTP.
+     */
+    public function resetPassword(User $user, array $data): array
+    {
+        if (!empty($data['current_password'])) {
+            if (!Hash::check($data['current_password'], $user->password)) {
+                throw ValidationException::withMessages([
+                    'current_password' => ['The current password entered is incorrect.'],
+                ]);
+            }
+        }
+
+        $otpRecord = Otp::where('user_id', $user->id)
+            ->where('type', 'reset_password')
+            ->first();
+
+        if (!$otpRecord || $otpRecord->expires_at->isPast()) {
+            throw ValidationException::withMessages([
+                'otp' => ['Verification code has expired. Please request a new OTP.'],
+            ]);
+        }
+
+        if ($otpRecord->attempts >= 5) {
+            throw ValidationException::withMessages([
+                'otp' => ['Too many incorrect attempts. Please request a new OTP.'],
+            ]);
+        }
+
+        if ((string) $data['otp'] !== (string) $otpRecord->otp_hash) {
+            $otpRecord->increment('attempts');
+            throw ValidationException::withMessages([
+                'otp' => ['Invalid verification code.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($user, $data, $otpRecord) {
+            $user->forceFill([
+                'password' => Hash::make($data['password']),
+            ])->save();
+
+            $otpRecord->delete();
+        });
+
+        return [
+            'success' => true,
+        ];
     }
 }

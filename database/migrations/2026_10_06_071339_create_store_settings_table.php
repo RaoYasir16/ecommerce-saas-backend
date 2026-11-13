@@ -25,6 +25,16 @@ return new class extends Migration
             // Home Page Banners (Min 1, Max 5 images path / metadata JSON)
             $table->json('banners')->nullable(); 
 
+            // Hero Section Configuration
+            $table->string('hero_type', 50)->default('slider');
+            $table->string('hero_badge')->nullable();
+            $table->string('hero_title')->nullable();
+            $table->text('hero_subtitle')->nullable();
+            $table->string('hero_image')->nullable();
+            $table->string('hero_button_text')->nullable();
+            $table->string('hero_button_link')->nullable();
+            $table->longText('hero_features')->nullable();
+
             // Terms & Conditions Page Configuration
             $table->boolean('use_custom_terms')->default(false); // false = default platform terms, true = merchant terms
             $table->longText('terms_and_conditions')->nullable();
@@ -32,6 +42,10 @@ return new class extends Migration
             // Contact & Social Links
             $table->string('support_email')->nullable();
             $table->string('support_phone')->nullable();
+            $table->string('city', 100)->nullable();
+            $table->string('province', 100)->nullable();
+            $table->string('country', 100)->nullable();
+            $table->text('google_map_url')->nullable();
             $table->string('facebook_url')->nullable();
             $table->string('instagram_url')->nullable();
             $table->string('tiktok_url')->nullable();
